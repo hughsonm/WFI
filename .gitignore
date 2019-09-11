@@ -1,0 +1,8 @@
+*.DS_Store
+*.gz
+*.log
+*.aux
+*.out
+*.o
+*.pdf
+**/Notes
