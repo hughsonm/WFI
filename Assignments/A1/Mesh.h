@@ -22,7 +22,7 @@ enum FV_MESH_GMESH_ELEMENT
 };
 
 
-using namespace std;
+//using namespace std;
 
 
 typedef struct
@@ -44,18 +44,18 @@ element_t;
 class Mesh
 {
 public:
-    Mesh(string filename);
+    Mesh(std::string filename);
     ~Mesh();
 
-    void writeMesh(string filename, std::string value_label, const vector<double>& values) const;
+    void writeMesh(std::string filename, std::string value_label, const vector<double>& values) const;
     int getElement3DCount() const {return elements_3d_.size(); }
 
-    void partitionMesh();                           //write this function
-    void outputStatistics() const;                  //write this function
+    //void partitionMesh();                           //write this function
+    //void outputStatistics() const;                  //write this function
 
 private:
 
-    void readMesh(string filename);
+    void readMesh(std::string filename);
     void getElementVertices();
     const vertex_t* getVertexFromMID(int vertex_mid) const;
     void createElementCentroidsList();
