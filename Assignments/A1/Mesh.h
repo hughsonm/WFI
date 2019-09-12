@@ -56,13 +56,13 @@ public:
 private:
 
     void readMesh(std::string filename);
-    void getElementVertices();
+    //void getElementVertices();
     const vertex_t* getVertexFromMID(int vertex_mid) const;
     void createElementCentroidsList();
 
 
-    int rank_;
-    int nproc_;
+    //int rank_;
+    //int nproc_;
     vector<vertex_t> vertices_;
     vector<element_t> elements_3d_;
     std::vector<double3_t> element_3d_centroids_;
