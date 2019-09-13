@@ -3,7 +3,7 @@ compiler: clang++
 
 before_install:
   - sudo apt-get install gmsh
-  - sudo apt-get install eigen
+  - sudo apt-get install libeigen3-dev
 
 install: skip
 
