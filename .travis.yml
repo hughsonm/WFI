@@ -1,0 +1,10 @@
+language: cpp
+compiler: clang
+
+install:
+  - apt install gmsh
+  - apt install eigen3
+
+script:
+  - make -C Assignments/A1
+  - ./Assignments/A1/A1.out
