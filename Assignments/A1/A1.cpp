@@ -1,5 +1,5 @@
 #include <eigen3/Eigen/Dense>
-#include <gmsh/Gmsh.h>
+#include <gmsh.h>
 #include <stdlib.h>
 #include <iostream>
 

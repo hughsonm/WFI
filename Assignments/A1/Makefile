@@ -9,7 +9,7 @@ CXX = clang++
 
 CXXFLAGS = -O0
 LIBS = -lgmsh
-LDFLAGS = -L/usr/lib/x86_64-linux-gnu
+LDFLAGS = -L/usr/local/lib
 
 LINKERFLAG = -lm
 
