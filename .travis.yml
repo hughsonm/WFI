@@ -1,11 +1,14 @@
 language: cpp
 compiler: clang++
+os: osx
 
 before_install:
-  - sudo apt-get install libgmsh-dev
-  - sudo apt-get install libeigen3-dev
-  - dpkg -L libgmsh-dev
-  - dpkg -L libeigen3-dev
+  - brew install gmsh
+  - brew install eigen
+  - dpkg -L gmsh
+  - gmsh -version
+  - dpkg -L eigen
+
 install: skip
 
 script:
