@@ -1,9 +1,10 @@
 language: cpp
-compiler: clang
+compiler: clang++
 
-install:
-  - apt install gmsh
-  - apt install eigen3
+before_install:
+  - sudo apt-get install gmsh
+
+install: skip
 
 script:
   - make -C Assignments/A1
