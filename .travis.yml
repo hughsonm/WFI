@@ -17,4 +17,4 @@ install: skip
 
 script:
   - make -C Assignments/A1
-  - ./Assignments/A1/A1.out
+  - ./Assignments/A1/A1.out "TestMesh.msh"
