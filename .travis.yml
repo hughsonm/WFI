@@ -3,10 +3,11 @@ compiler: clang++
 os: osx
 
 before_install:
-  - brew udate
+  - brew update
   - HOMEBREW_NO_AUTO_UPDATE=1 brew install gmsh
   - HOMEBREW_NO_AUTO_UPDATE=1 brew install eigen
   - HOMEBREW_NO_AUTO_UPDATE=1 brew install dpkg
+  - dpkg -L eigen
   - ls /usr/include
   - ls /usr/lib
   - ls /usr/local/include
