@@ -3,6 +3,7 @@ compiler: clang++
 os: osx
 
 before_install:
+  - brew udate
   - HOMEBREW_NO_AUTO_UPDATE=1 brew install gmsh
   - HOMEBREW_NO_AUTO_UPDATE=1 brew install eigen
   - HOMEBREW_NO_AUTO_UPDATE=1 brew install dpkg
