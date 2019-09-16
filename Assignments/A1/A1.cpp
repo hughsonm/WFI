@@ -218,60 +218,6 @@ int main (int argc, char **argv)
         }
     }
 
-
-
-    // // Get elements and nodes so we can see where stuff sits.
-    // std::vector<std::size_t> node_tags;
-    // std::vector<double> node_coords_flat;
-    // std::vector<double> node_para_coords_flat;
-    // std::vector<std::vector<double> > node_coords;
-    // gmsh::model::mesh::getNodes(
-    //     node_tags,
-    //     node_coords_flat,
-    //     node_para_coords_flat
-    // );
-    //
-    // // Want to sort the nodes into a vector such that I can access
-    // // nodes using their tags and their indices
-    // std::size_t max_tag = *(max_element(node_tags.begin(),node_tags.end()));
-    // std::cout << "Nodes" << std::endl;
-    // std::cout << "\tMax. Tag: " << max_tag << std::endl;
-    //
-    // node_coords.resize(max_tag+1);
-    // std::cout << "\tTag\tX\tY\tZ" << std::endl;
-    // for(int tag_idx = 0; tag_idx < node_tags.size(); tag_idx++)
-    // {
-    //     std::vector<double> node(3);
-    //     node[0] = node_coords_flat[3*tag_idx+0];
-    //     node[1] = node_coords_flat[3*tag_idx+1];
-    //     node[2] = node_coords_flat[3*tag_idx+2];
-    //     node_coords[node_tags[tag_idx]] = node;
-    //     std::cout << "\t" << node_tags[tag_idx];
-    //     std::cout << "\t" << node[0];
-    //     std::cout << "\t" << node[1];
-    //     std::cout << "\t" << node[2];
-    //     std::cout << std::endl;
-    // }
-    //
-    //
-    //
-    //
-    // std::vector<int> ele_types;
-    // std::vector<std::vector<std::size_t> > ele_tags;
-    // std::vector<std::vector<std::size_t> > ele_node_tags;
-    // gmsh::model::mesh::getElements(
-    //     ele_types,
-    //     ele_tags,
-    //     ele_node_tags,
-    //     2
-    // );
-    // std::cout << "Elements" << std::endl;
-    // std::cout << "Now that we know the physical groups," << std::endl;
-    // std::cout << "let's build some elements and" << std::endl;
-    // std::cout << "calculate some stuff" <<  std::endl;
-
-
-
     // A matrix
     Eigen::MatrixXd m(2,2);
     m(0,0) = 1;
