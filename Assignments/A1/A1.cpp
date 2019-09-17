@@ -1,10 +1,21 @@
-#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigen>
 #include <gmsh.h>
 #include <stdlib.h>
 #include <iostream>
 #include <algorithm>
+#include <complex>
+#include <cmath>
+#include <boost/math/special_functions/hankel.hpp>
 
-void BuildMesh(
+#define EPSNAUGHT 8.8541848128E-12
+#define MUNAUGHT 1.25663706212E-6
+#define CNAUGHT 299792508.7882675
+
+
+
+
+
+void BuildTriangulation(
     std::string filename,
     Eigen::MatrixXd & tri,
     Eigen::MatrixXd & points,
@@ -217,6 +228,7 @@ void BuildMesh(
 
     int max_tag = *(max_element(node_tags.begin(),node_tags.end()));
     points.resize(max_tag+1,3);
+    points.setZero();
     int node_coord_ptr = 0;
     for(int node_idx = 0; node_idx < node_tags.size(); node_idx++)
     {
@@ -228,6 +240,77 @@ void BuildMesh(
     }
 }
 
+void CalculateTriAreas(
+    Eigen::MatrixXd & areas,
+    const Eigen::MatrixXd & tri,
+    const Eigen::MatrixXd & points,
+    bool verbose = false
+)
+{
+    assert(tri.cols() == 4);
+    assert(points.cols() == 3);
+
+    for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
+    {
+        Eigen::MatrixXd itri = tri.block(tri_idx,0,1,3);
+        int p_idx = itri(0);
+        int q_idx = itri(1);
+        int r_idx = itri(2);
+        double px = points(p_idx,0);
+        double py = points(p_idx,1);
+        double qx = points(q_idx,0);
+        double qy = points(q_idx,1);
+        double rx = points(r_idx,0);
+        double ry = points(r_idx,1);
+
+        double v1x = qx-px;
+        double v1y = qy-py;
+        double v2x = rx-px;
+        double v2y = ry-py;
+
+        double area = (v1x*v2y-v1y*v2x)/2;
+    }
+}
+
+void EvaluateIncidentField(
+    Eigen::VectorXcd & obs_Ez,
+    const Eigen::VectorXd source_loc,
+    const std::complex<double> source_coeff,
+    const double frequency,
+    const Eigen::MatrixXd & obs_pts
+)
+{
+    assert(source_loc.size() == obs_pts.cols());
+
+    Eigen::MatrixXd d2 = obs_pts;
+    for(int obs_idx = 0; obs_idx < d2.rows(); obs_idx++)
+    {
+        d2.block(obs_idx,0,1,3) -= source_loc.transpose();
+    }
+
+    d2 = d2.array().pow(2);
+    Eigen::VectorXd r2 = d2.array().rowwise().sum();
+
+    double k = 2*M_PI*frequency/CNAUGHT;
+
+    Eigen::VectorXd hankelarg = r2.array().sqrt();
+
+    hankelarg *= k;
+    obs_Ez.resize(hankelarg.size());
+    std::cout << "obs_Ez has " << obs_Ez.size() << " things " << std::endl;
+    std::cout << "hankelarg has " << hankelarg.size() << " things " << std::endl;
+    obs_Ez.setZero();
+    std::cout << "obs_Ez has " << obs_Ez.size() << " things " << std::endl;
+    //h_0^(2)(z) = J_0(z) -i*Y_0(z)
+
+    for (int ihankel = 0; ihankel < hankelarg.size(); ihankel++)
+    {
+
+        obs_Ez[ihankel] = boost::math::cyl_hankel_2(0,hankelarg[ihankel]);
+        std::cout << "\t" << ihankel << "\t" << obs_Ez[ihankel] << std::endl;
+    }
+
+}
 int main (int argc, char **argv)
 {
     assert(argc==2);
@@ -241,8 +324,16 @@ int main (int argc, char **argv)
     Eigen::MatrixXd tri;
     Eigen::MatrixXd points;
 
-    BuildMesh(
+    BuildTriangulation(
         argv[1],
+        tri,
+        points
+    );
+
+    Eigen::MatrixXd areas;
+
+    CalculateTriAreas(
+        areas,
         tri,
         points
     );
@@ -254,6 +345,22 @@ int main (int argc, char **argv)
     std::cout << bar << std::endl;
     std::cout << "Points: " << std::endl;
     std::cout << points << std::endl;
+
+    Eigen::VectorXcd Ez_inc;
+    Eigen::VectorXd src_loc(3);
+    src_loc << 1, 1, 0;
+    std::complex<double> src_coeff(1,1);
+
+    EvaluateIncidentField(
+        Ez_inc,
+        src_loc,
+        src_coeff,
+        1e9,
+        points
+    );
+
+    std::cout << "Incident fields:" << std::endl;
+    std::cout << Ez_inc << std::endl;
 
     gmsh::finalize();
     return(0);
