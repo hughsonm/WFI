@@ -4,9 +4,10 @@ os: osx
 
 before_install:
   - brew update
-  - HOMEBREW_NO_AUTO_UPDATE=1 brew install gmsh
-  - HOMEBREW_NO_AUTO_UPDATE=1 brew install eigen
-  - HOMEBREW_NO_AUTO_UPDATE=1 brew install dpkg
+  - brew install gmsh
+  - brew install eigen
+  - brew install dpkg
+  - brew install boost
   - ls /usr/include
   - ls /usr/lib
   - ls /usr/local/include
