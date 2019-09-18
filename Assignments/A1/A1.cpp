@@ -272,6 +272,29 @@ void CalculateTriAreas(
     }
 }
 
+void CalculateTriCentroids(
+    Eigen::MatrixXd & centroids,
+    const Eigen::MatrixXd & tri,
+    const Eigen::MatrixXd & points
+)
+{
+    assert(tri.cols() == 4);
+    assert(points.cols() == 3);
+    centroids.resize(tri.rows(),3);
+    centroids.setZero();
+    for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
+    {
+        Eigen::VectorXd itri = tri.block(tri_idx,0,1,3).transpose();
+        Eigen::VectorXd tx(3),ty(3),tz(3);
+        tx << points(itri(0),0),points(itri(1),0),points(itri(2),0);
+        ty << points(itri(0),1),points(itri(1),1),points(itri(2),1);
+        tz << points(itri(0),2),points(itri(1),2),points(itri(2),2);
+        Eigen::VectorXd centroid(3);
+        centroid << tx.array().mean(),ty.array().mean(),tz.array().mean();
+        centroids.block(tri_idx,0,1,3) = centroid.transpose();
+    }
+}
+
 void EvaluateIncidentField(
     Eigen::VectorXcd & obs_Ez,
     const Eigen::VectorXd source_loc,
@@ -355,12 +378,22 @@ int main (int argc, char **argv)
         Ez_inc,
         src_loc,
         src_coeff,
-        1e9,
+        1e6,
         points
     );
 
     std::cout << "Incident fields:" << std::endl;
     std::cout << Ez_inc << std::endl;
+
+
+    Eigen::MatrixXd centroids;
+    CalculateTriCentroids(
+        centroids,
+        tri,
+        points
+    );
+    std::cout << "\n\nCentroids" << std::endl;
+    std::cout << centroids << std::endl;
 
     gmsh::finalize();
     return(0);
