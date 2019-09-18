@@ -7,7 +7,7 @@ before_install:
   - brew install gmsh
   - brew install eigen
   - brew install dpkg
-  - brew install boost
+  - brew upgrade boost
   - ls /usr/include
   - ls /usr/lib
   - ls /usr/local/include
