@@ -2,6 +2,7 @@
 #include <gmsh.h>
 #include <stdlib.h>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <complex>
 #include <cmath>
@@ -13,7 +14,65 @@
 
 
 
+void ReadAntennaFile(
+    Eigen::MatrixXd & locations,
+    Eigen::VectorXcd &  coefficients,
+    const std::string filename
+)
+{
+    std::ifstream reader;
+    reader.open(filename,std::ifstream::in);
+    std::vector<Eigen::VectorXd> position_vec;
+    std::vector<std::complex<double> > coeff_vec;
+    std::string dummy_line;
+    // Demand that we have X Y Z Magnitude Phase
+    reader >> dummy_line;
+    std::cout << dummy_line << std::endl;
+    assert(dummy_line.compare("x") == 0);
+    reader >> dummy_line;
+    assert(dummy_line.compare("y") == 0);
+    reader >> dummy_line;
+    assert(dummy_line.compare("z") == 0);
+    reader >> dummy_line;
+    assert(dummy_line.compare("magnitude") == 0);
+    reader >> dummy_line;
+    assert(dummy_line.compare("phase") == 0);
+    int itx = 0;
+    while(reader)
+    {
+        Eigen::VectorXd position(3);
+        double tx,ty,tz;
 
+        reader >> tx;
+
+        if(reader.eof()) break;
+
+        reader >> ty;
+        reader >> tz;
+
+        position << tx,ty,tz;
+        position_vec.push_back(position);
+        double mag,phase;
+        reader >> mag;
+        reader >> phase;
+        coeff_vec.push_back(std::polar(mag,phase));
+        itx++;
+    }
+
+    int ntx = itx;
+    locations.resize(ntx,3);
+    coefficients.resize(ntx);
+
+    for (int irow = 0; irow < ntx; irow++)
+    {
+        Eigen::MatrixXd loc_row(1,3);
+        loc_row << position_vec[irow][0],position_vec[irow][1],position_vec[irow][2];
+        locations.block(irow,0,1,3) = loc_row;
+        coefficients(irow) = coeff_vec[irow];
+    }
+
+    reader.close();
+}
 
 void BuildTriangulation(
     std::string filename,
@@ -241,7 +300,7 @@ void BuildTriangulation(
 }
 
 void CalculateTriAreas(
-    Eigen::MatrixXd & areas,
+    Eigen::VectorXd & areas,
     const Eigen::MatrixXd & tri,
     const Eigen::MatrixXd & points,
     bool verbose = false
@@ -249,7 +308,7 @@ void CalculateTriAreas(
 {
     assert(tri.cols() == 4);
     assert(points.cols() == 3);
-
+    areas.resize(tri.rows());
     for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
     {
         Eigen::MatrixXd itri = tri.block(tri_idx,0,1,3);
@@ -262,13 +321,11 @@ void CalculateTriAreas(
         double qy = points(q_idx,1);
         double rx = points(r_idx,0);
         double ry = points(r_idx,1);
-
         double v1x = qx-px;
         double v1y = qy-py;
         double v2x = rx-px;
         double v2y = ry-py;
-
-        double area = (v1x*v2y-v1y*v2x)/2;
+        areas(tri_idx) = (v1x*v2y-v1y*v2x)/2;
     }
 }
 
@@ -320,71 +377,87 @@ void EvaluateIncidentField(
 
     hankelarg *= k;
     obs_Ez.resize(hankelarg.size());
-    std::cout << "obs_Ez has " << obs_Ez.size() << " things " << std::endl;
-    std::cout << "hankelarg has " << hankelarg.size() << " things " << std::endl;
     obs_Ez.setZero();
-    std::cout << "obs_Ez has " << obs_Ez.size() << " things " << std::endl;
-    //h_0^(2)(z) = J_0(z) -i*Y_0(z)
-
     for (int ihankel = 0; ihankel < hankelarg.size(); ihankel++)
     {
-
         obs_Ez[ihankel] = boost::math::cyl_hankel_2(0,hankelarg[ihankel]);
-        std::cout << "\t" << ihankel << "\t" << obs_Ez[ihankel] << std::endl;
     }
 
+}
+
+void BuildBackgroundGreen(
+    Eigen::MatrixXcd & G,
+    Eigen::MatrixXd & centroids,
+    Eigen::VectorXd & areas,
+    Eigen::VectorXcd & k2_f,
+    double k2_b
+)
+{
+
+    Eigen::VectorXcd delk2 = k2_f.array() - k2_b;
+
+    int n_tri = areas.size();
+
+    G.resize(n_tri,n_tri);
+
+    std::complex<double> j(0,1);
+
+    double k_b = std::sqrt(k2_b);
+
+    for(int mm = 0; mm < n_tri; mm++)
+    {
+        for(int nn = mm; nn < n_tri; nn++)
+        {
+            Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
+            dxyz = dxyz.array().pow(2);
+            double dmn = std::sqrt(dxyz.array().sum());
+            std::complex<double> Gmn;
+            double a_n = std::sqrt(areas[nn]/M_PI);
+            if(mm==nn)
+            {
+                std::complex<double> H12 = boost::math::cyl_hankel_2(
+                    1,
+                    k_b*a_n
+                );
+                Gmn = j*(M_PI*k_b*a_n*H12 - 2.0*j)/2.0;
+            }
+            else
+            {
+                std::complex<double> J1 = boost::math::cyl_bessel_j(
+                    1,
+                    k_b*a_n
+                );
+                std::complex<double> H02 = boost::math::cyl_hankel_2(
+                    0,
+                    k_b*dmn
+                );
+                Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
+            }
+            Gmn *= -j/4.0;
+            G(mm,nn) = Gmn;
+            G(nn,mm) = Gmn;
+        }
+    }
 }
 int main (int argc, char **argv)
 {
     assert(argc==2);
-
-    std::string bar = "";
-    bar += "-";
-    for(int bar_idx = 0; bar_idx < 80; bar_idx++) bar += "-";
-
     gmsh::initialize();
 
     Eigen::MatrixXd tri;
     Eigen::MatrixXd points;
-
     BuildTriangulation(
         argv[1],
         tri,
         points
     );
 
-    Eigen::MatrixXd areas;
-
+    Eigen::VectorXd areas;
     CalculateTriAreas(
         areas,
         tri,
         points
     );
-
-    std::cout << bar << std::endl;
-    std::cout << "Tri: " << std::endl;
-    std::cout << tri << std::endl;
-
-    std::cout << bar << std::endl;
-    std::cout << "Points: " << std::endl;
-    std::cout << points << std::endl;
-
-    Eigen::VectorXcd Ez_inc;
-    Eigen::VectorXd src_loc(3);
-    src_loc << 1, 1, 0;
-    std::complex<double> src_coeff(1,1);
-
-    EvaluateIncidentField(
-        Ez_inc,
-        src_loc,
-        src_coeff,
-        1e6,
-        points
-    );
-
-    std::cout << "Incident fields:" << std::endl;
-    std::cout << Ez_inc << std::endl;
-
 
     Eigen::MatrixXd centroids;
     CalculateTriCentroids(
@@ -392,8 +465,62 @@ int main (int argc, char **argv)
         tri,
         points
     );
-    std::cout << "\n\nCentroids" << std::endl;
-    std::cout << centroids << std::endl;
+
+    Eigen::MatrixXd tx_locations;
+    Eigen::VectorXcd tx_coefficients;
+    ReadAntennaFile(
+        tx_locations,
+        tx_coefficients,
+        "AntennaPositions.txt"
+    );
+
+    Eigen::MatrixXcd Ez_inc_all(centroids.rows(),tx_locations.rows());
+    Eigen::VectorXcd Ez_inc_one;
+    for(int itx = 0; itx < tx_locations.rows(); itx++)
+    {
+        EvaluateIncidentField(
+            Ez_inc_one,
+            tx_locations.row(itx),
+            tx_coefficients(itx),
+            100e6,
+            centroids
+        );
+        Ez_inc_all.col(itx) = Ez_inc_one;
+    }
+
+    double frequency = 100e6;
+    double omega = 2*M_PI*frequency;
+    double k2 = omega*omega/CNAUGHT/CNAUGHT;
+    Eigen::VectorXcd k2_f(areas.size());
+    k2_f.setZero();
+    k2_f = k2_f.array() + (1.1*k2);
+    Eigen::MatrixXcd G_b;
+    BuildBackgroundGreen(
+        G_b,
+        centroids,
+        areas,
+        k2_f,
+        k2
+    );
+
+    Eigen::MatrixXcd L(G_b.rows(),G_b.cols());
+    L.setIdentity();
+    L -= G_b;
+
+    Eigen::VectorXcd b;
+    b = G_b*Ez_inc_all.col(0);
+
+    Eigen::VectorXcd Ez_sct;
+    Ez_sct = L.colPivHouseholderQr().solve(b);
+
+
+
+    std::cout << "Incident: " << std::endl;
+    std::cout << Ez_inc_all.col(0) << std::endl;
+    std::cout << "Scattered: " << std::endl;
+    std::cout << Ez_sct << std::endl;
+
+    //std::cout << G_b << std::endl;
 
     gmsh::finalize();
     return(0);
