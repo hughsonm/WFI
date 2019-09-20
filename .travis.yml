@@ -17,5 +17,6 @@ before_install:
 install: skip
 
 script:
-  - make -C Assignments/A1
-  - ./Assignments/A1/A1.out "./Assignments/A1/TestMesh.msh"
+  - cd Assignments/A1
+  - make
+  - ./A1.out "./TestMesh.msh"
