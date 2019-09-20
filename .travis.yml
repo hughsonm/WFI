@@ -19,4 +19,9 @@ install: skip
 script:
   - cd Assignments/A1
   - make
-  - ./A1.out "./TestMesh.msh"
+  - gmsh -2 -clscale 1.0 -o TestMesh.msh TestMesh.geo
+  - ./A1.out "./TestMesh.msh" "AntennatPositions.txt" "4e9"
+  - gmsh -2 -clscale 0.3 -o TestMesh.msh TestMesh.geo
+  - ./A1.out "./TestMesh.msh" "AntennatPositions.txt" "4e9"
+  - gmsh -2 -clscale 0.1 -o TestMesh.msh TestMesh.geo
+  - ./A1.out "./TestMesh.msh" "AntennatPositions.txt" "4e9"

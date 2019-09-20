@@ -12,7 +12,115 @@
 #define MUNAUGHT 1.25663706212E-6
 #define CNAUGHT 299792508.7882675
 
+void WriteMatrixToFile(
+    std::string filename,
+    Eigen::MatrixXcd matrix,
+    bool append=false
+)
+{
+    std::ofstream writer;
+    if(append)
+    {
+        writer.open(filename,std::ofstream::out|std::ofstream::app);
+    }
+    else
+    {
+        writer.open(filename,std::ofstream::out);
+    }
+    for(int ii = 0; ii < matrix.rows(); ii++)
+    {
+        int n_cols= matrix.cols();
+        for(int jj = 0; jj <n_cols; jj++)
+        {
+            std::string sep = ",";
+            if (jj == (n_cols-1)) sep = "";
+            std::string imag_prefix = "+";
+            if(matrix(ii,jj).imag()<0) imag_prefix = "";
 
+            writer << matrix(ii,jj).real() << imag_prefix << matrix(ii,jj).imag() << "i" << sep;
+        }
+        writer << std::endl;
+    }
+
+    writer.close();
+}
+
+void WriteMatrixToFile(
+    std::string filename,
+    Eigen::MatrixXd matrix,
+    bool append=false
+)
+{
+    std::ofstream writer;
+    if(append)
+    {
+        writer.open(filename,std::ofstream::out|std::ofstream::app);
+    }
+    else
+    {
+        writer.open(filename,std::ofstream::out);
+    }
+    for(int ii = 0; ii < matrix.rows(); ii++)
+    {
+        int n_cols= matrix.cols();
+        for(int jj = 0; jj <n_cols; jj++)
+        {
+            std::string sep = ",";
+            if (jj == (n_cols-1)) sep = "";
+
+            writer << matrix(ii,jj) << sep;
+        }
+        writer << std::endl;
+    }
+    writer.close();
+}
+
+void WriteVectorToFile(
+    std::string filename,
+    Eigen::VectorXd vec,
+    bool append=false
+)
+{
+    std::ofstream writer;
+    if(append)
+    {
+        writer.open(filename,std::ofstream::out|std::ofstream::app);
+    }
+    else
+    {
+        writer.open(filename,std::ofstream::out);
+    }
+    for(int ii = 0; ii < vec.size(); ii++)
+    {
+        writer << vec(ii) << std::endl;
+    }
+    writer.close();
+}
+
+void WriteVectorToFile(
+    std::string filename,
+    Eigen::VectorXcd vec,
+    bool append=false
+)
+{
+    std::ofstream writer;
+    if(append)
+    {
+        writer.open(filename,std::ofstream::out|std::ofstream::app);
+    }
+    else
+    {
+        writer.open(filename,std::ofstream::out);
+    }
+    for(int ii = 0; ii < vec.size(); ii++)
+    {
+        std::string imag_prefix = "+";
+        if(vec(ii).imag()<0) imag_prefix = "";
+
+        writer << vec(ii).real() << imag_prefix << vec(ii).imag() << "i" << std::endl;
+    }
+    writer.close();
+}
 
 void ReadAntennaFile(
     Eigen::MatrixXd & locations,
@@ -27,7 +135,6 @@ void ReadAntennaFile(
     std::string dummy_line;
     // Demand that we have X Y Z Magnitude Phase
     reader >> dummy_line;
-    std::cout << dummy_line << std::endl;
     assert(dummy_line.compare("x") == 0);
     reader >> dummy_line;
     assert(dummy_line.compare("y") == 0);
@@ -101,8 +208,8 @@ void BuildTriangulation(
     {
         if(verbose)
         {
-            std::cout << "Physical Group Number: " << phys_idx;
-            std::cout << std::endl;
+            std::cerr << "Physical Group Number: " << phys_idx;
+            std::cerr << std::endl;
         }
         int phys_dim = dimTags[phys_idx].first;
         int phys_tag = dimTags[phys_idx].second;
@@ -112,8 +219,8 @@ void BuildTriangulation(
         }
         if(verbose)
         {
-            std::cout << "\tDimension: " << phys_dim << std::endl;
-            std::cout << "\tTag: " << phys_tag << std::endl;
+            std::cerr << "\tDimension: " << phys_dim << std::endl;
+            std::cerr << "\tTag: " << phys_tag << std::endl;
         }
         std::string phys_name;
         gmsh::model::getPhysicalName(
@@ -124,8 +231,8 @@ void BuildTriangulation(
 
         if(verbose)
         {
-            std::cout << "\tGetting entities for this physical group's";
-            std::cout << " dimension" << std::endl;
+            std::cerr << "\tGetting entities for this physical group's";
+            std::cerr << " dimension" << std::endl;
         }
         gmsh::vectorpair entities_dimtags_for_phys;
         gmsh::model::getEntities(
@@ -134,8 +241,8 @@ void BuildTriangulation(
         );
         if(verbose)
         {
-            std::cout << "\tPhysical Group Name: ";
-            std::cout << phys_name << std::endl;
+            std::cerr << "\tPhysical Group Name: ";
+            std::cerr << phys_name << std::endl;
         }
         std::vector<int> ent_tags;
         gmsh::model::getEntitiesForPhysicalGroup(
@@ -145,8 +252,8 @@ void BuildTriangulation(
         );
         if(verbose)
         {
-            std::cout << "\tEntity Count: " << ent_tags.size();
-            std::cout << std::endl;
+            std::cerr << "\tEntity Count: " << ent_tags.size();
+            std::cerr << std::endl;
         }
 
         std::vector<std::vector<int> > node_tags_for_ele_for_phys;
@@ -158,12 +265,12 @@ void BuildTriangulation(
 
             if(verbose)
             {
-                std::cout << "\t\tThis physical group has the entity";
-                std::cout << " with dim = ";
-                std::cout << ent_for_phys_dim;
-                std::cout << " and tag = ";
-                std::cout << ent_for_phys_tag;
-                std::cout << std::endl;
+                std::cerr << "\t\tThis physical group has the entity";
+                std::cerr << " with dim = ";
+                std::cerr << ent_for_phys_dim;
+                std::cerr << " and tag = ";
+                std::cerr << ent_for_phys_tag;
+                std::cerr << std::endl;
             }
 
             std::string ent_for_phys_type;
@@ -175,8 +282,8 @@ void BuildTriangulation(
 
             if(verbose)
             {
-                std::cout << "\t\tGetting elements and nodes for this";
-                std::cout << " entity" << std::endl;
+                std::cerr << "\t\tGetting elements and nodes for this";
+                std::cerr << " entity" << std::endl;
             }
 
             std::vector<int> ele_for_ent_types;
@@ -193,15 +300,15 @@ void BuildTriangulation(
             int node_tag_ptr = 0;
             if(verbose)
             {
-                std::cout << "\t\tGot " << ele_for_ent_types.size();
-                std::cout << " different types of elements" << std::endl;
+                std::cerr << "\t\tGot " << ele_for_ent_types.size();
+                std::cerr << " different types of elements" << std::endl;
             }
             for (int type_idx = 0; type_idx < ele_for_ent_types.size(); type_idx++)
             {
                 if(verbose)
                 {
-                    std::cout << "\t\tType no. " << type_idx;
-                    std::cout << " is " << ele_for_ent_types[type_idx] << std::endl;
+                    std::cerr << "\t\tType no. " << type_idx;
+                    std::cerr << " is " << ele_for_ent_types[type_idx] << std::endl;
                 }
 
                 std::string type_name;
@@ -220,23 +327,23 @@ void BuildTriangulation(
 
                 if(verbose)
                 {
-                    std::cout << "\t\tType Name: " << type_name << std::endl;
-                    std::cout << "\t\tDimension: " << type_dim << std::endl;
-                    std::cout << "\t\tOrder    : " << type_order << std::endl;
-                    std::cout << "\t\tNum Nodes: " << type_num_nodes << std::endl;
-                    std::cout << "\t\tCount    : " << ele_for_ent_tags[type_idx].size() << std::endl;
-                    std::cout << "\t\tTags     : " << std::endl;
+                    std::cerr << "\t\tType Name: " << type_name << std::endl;
+                    std::cerr << "\t\tDimension: " << type_dim << std::endl;
+                    std::cerr << "\t\tOrder    : " << type_order << std::endl;
+                    std::cerr << "\t\tNum Nodes: " << type_num_nodes << std::endl;
+                    std::cerr << "\t\tCount    : " << ele_for_ent_tags[type_idx].size() << std::endl;
+                    std::cerr << "\t\tTags     : " << std::endl;
                 }
                 // How many elements we got? A lot.
                 int n_new_elements = ele_for_ent_tags[type_idx].size();
                 Eigen::Index cur_n_rows = tri.rows();
                 if(verbose)
                 {
-                    std::cout << "\t\tTri has " << cur_n_rows << " rows";
-                    std::cout << " and we add " << n_new_elements;
-                    std::cout << " for a total of ";
-                    std::cout << (cur_n_rows + n_new_elements);
-                    std::cout << std::endl;
+                    std::cerr << "\t\tTri has " << cur_n_rows << " rows";
+                    std::cerr << " and we add " << n_new_elements;
+                    std::cerr << " for a total of ";
+                    std::cerr << (cur_n_rows + n_new_elements);
+                    std::cerr << std::endl;
                 }
 
 
@@ -246,7 +353,7 @@ void BuildTriangulation(
                 );
                 for(int ele_idx = 0; ele_idx < n_new_elements; ele_idx++)
                 {
-                    //std::cout << "\t\t" << ele_for_ent_tags[type_idx][ele_idx] << std::endl;
+                    //std::cerr << "\t\t" << ele_for_ent_tags[type_idx][ele_idx] << std::endl;
                     //ele_tags_for_phys.push_back(ele_for_ent_tags[type_idx][ele_idx]);
                     int add_row = cur_n_rows + ele_idx;
 
@@ -261,16 +368,16 @@ void BuildTriangulation(
 
         if(verbose)
         {
-            std::cout << "\tThis physical's node tags for each ele:";
-            std::cout << std::endl;
+            std::cerr << "\tThis physical's node tags for each ele:";
+            std::cerr << std::endl;
             for(int ele_idx = 0; ele_idx < node_tags_for_ele_for_phys.size(); ele_idx++)
             {
-                std::cout << "\t";
+                std::cerr << "\t";
                 for(int node_idx = 0; node_idx < node_tags_for_ele_for_phys[ele_idx].size(); node_idx++)
                 {
-                    std::cout << node_tags_for_ele_for_phys[ele_idx][node_idx] << "\t";
+                    std::cerr << node_tags_for_ele_for_phys[ele_idx][node_idx] << "\t";
                 }
-                std::cout << std::endl;
+                std::cerr << std::endl;
             }
         }
     }
@@ -389,13 +496,9 @@ void BuildBackgroundGreen(
     Eigen::MatrixXcd & G,
     Eigen::MatrixXd & centroids,
     Eigen::VectorXd & areas,
-    Eigen::VectorXcd & k2_f,
     double k2_b
 )
 {
-
-    Eigen::VectorXcd delk2 = k2_f.array() - k2_b;
-
     int n_tri = areas.size();
 
     G.resize(n_tri,n_tri);
@@ -439,41 +542,55 @@ void BuildBackgroundGreen(
         }
     }
 }
+
 int main (int argc, char **argv)
 {
-    assert(argc==2);
+    assert(argc==4);
+    std::cerr << "\nInitializing gmsh...";
     gmsh::initialize();
+    std::cerr << " done!" << std::endl;
 
+    double frequency = std::atof(argv[3]);
     Eigen::MatrixXd tri;
     Eigen::MatrixXd points;
+    std::cerr << "Building triangulation...";
     BuildTriangulation(
         argv[1],
         tri,
-        points
+        points,
+        false
     );
+    std::cerr << " done!" << std::endl;
 
+    std::cerr << "\nCalculating triangle areas...";
     Eigen::VectorXd areas;
     CalculateTriAreas(
         areas,
         tri,
         points
     );
+    std::cerr << " done!" << std::endl;
 
+    std::cerr << "\nCalculating triangle areas...";
     Eigen::MatrixXd centroids;
     CalculateTriCentroids(
         centroids,
         tri,
         points
     );
+    std::cerr << " done!" << std::endl;
 
+    std::cerr << "\nReading antenna file...";
     Eigen::MatrixXd tx_locations;
     Eigen::VectorXcd tx_coefficients;
     ReadAntennaFile(
         tx_locations,
         tx_coefficients,
-        "AntennaPositions.txt"
+        argv[2]
     );
+    std::cerr << " done!" << std::endl;
 
+    std::cerr << "\nCalculating incident fields...";
     Eigen::MatrixXcd Ez_inc_all(centroids.rows(),tx_locations.rows());
     Eigen::VectorXcd Ez_inc_one;
     for(int itx = 0; itx < tx_locations.rows(); itx++)
@@ -482,46 +599,114 @@ int main (int argc, char **argv)
             Ez_inc_one,
             tx_locations.row(itx),
             tx_coefficients(itx),
-            100e6,
+            frequency,
             centroids
         );
+        std::cerr << itx << " ";
         Ez_inc_all.col(itx) = Ez_inc_one;
     }
+    std::cerr << " done!" << std::endl;
 
-    double frequency = 100e6;
     double omega = 2*M_PI*frequency;
-    double k2 = omega*omega/CNAUGHT/CNAUGHT;
+    double k2_b = omega*omega/CNAUGHT/CNAUGHT;
+
     Eigen::VectorXcd k2_f(areas.size());
     k2_f.setZero();
-    k2_f = k2_f.array() + (1.1*k2);
+    k2_f = k2_f.array() + (1.00*k2_b);
+    for(int ik2 = 0; ik2 < k2_f.size(); ik2++)
+    {
+        if(
+            (-0.05 < centroids(ik2,0)) &&
+            (centroids(ik2,0) < 0.05)  &&
+            (-0.05 < centroids(ik2,1)) &&
+            (centroids(ik2,1) < 0.05)
+        )
+        {
+            k2_f(ik2) = k2_b*1.1;
+        }
+    }
+
+    std::cerr << "\nCalculating background Green function...";
     Eigen::MatrixXcd G_b;
     BuildBackgroundGreen(
         G_b,
         centroids,
         areas,
-        k2_f,
-        k2
+        k2_b
+    );
+    std::cerr << " done!" << std::endl;
+    std::cerr << "\nFilling Chi's diagonal with k2...";
+    Eigen::MatrixXcd Chi(areas.size(),areas.size());
+    Chi.setZero();
+    for(int dd = 0; dd < Chi.rows(); dd++)
+    {
+        Chi(dd,dd) = k2_f(dd) - k2_b;
+    }
+    std::cerr << " done!" << std::endl;
+
+    std::cerr << "\nAllocating space for L...";
+    Eigen::MatrixXcd L(G_b.rows(),G_b.cols());
+    std::cerr << "\nMultiplying G_b by Chi...";
+    // L.setIdentity();
+    L = G_b;
+    for(int cc = 0; cc<Chi.cols();cc++)
+    {
+        L.col(cc) = L.col(cc)*Chi(cc,cc);
+        L(cc,cc) += 1.0;
+    }
+    std::cerr << " done!" << std::endl;
+
+
+    std::cerr << "\nMaking Ez_sct_all...";
+    Eigen::MatrixXcd Ez_sct_all(
+        Ez_inc_all.rows(),
+        Ez_inc_all.cols()
+    );
+    std::cerr << " done!" << std::endl;
+
+    std::cerr << "\nFactoring L...";
+    Eigen::PartialPivLU<Eigen::MatrixXcd> LU_L;
+    LU_L.compute(L);
+    std::cerr << " done!" << std::endl;
+
+    std::cerr << "\nSolving scattered fields for each source...";
+    for(int jj = 0; jj < Ez_inc_all.cols(); jj++)
+    {
+        Eigen::VectorXcd b = -G_b*(Chi*Ez_inc_all.col(jj));
+        Eigen::VectorXcd x = LU_L.solve(b);
+        Ez_sct_all.col(jj) = x;
+        std::cerr << jj << " ";
+    }
+    std::cerr << "done!" << std::endl;
+
+    std::cerr << "\nWriting results to file...";
+    WriteMatrixToFile(
+        "Test_tri.txt",
+        tri
     );
 
-    Eigen::MatrixXcd L(G_b.rows(),G_b.cols());
-    L.setIdentity();
-    L -= G_b;
+    WriteMatrixToFile(
+        "Test_pts.txt",
+        points
+    );
 
-    Eigen::VectorXcd b;
-    b = G_b*Ez_inc_all.col(0);
+    WriteVectorToFile(
+        "k2_fgd.txt",
+        k2_f
+    );
 
-    Eigen::VectorXcd Ez_sct;
-    Ez_sct = L.colPivHouseholderQr().solve(b);
+    WriteMatrixToFile(
+        "Ez_inc.txt",
+        Ez_inc_all
+    );
+    WriteMatrixToFile(
+        "Ez_sct.txt",
+        Ez_sct_all
+    );
+    std::cerr <<" done!" << std::endl;
 
-
-
-    std::cout << "Incident: " << std::endl;
-    std::cout << Ez_inc_all.col(0) << std::endl;
-    std::cout << "Scattered: " << std::endl;
-    std::cout << Ez_sct << std::endl;
-
-    //std::cout << G_b << std::endl;
-
+    std::cerr << "\nFinalizing gmsh...";
     gmsh::finalize();
+    std::cerr << " done!" << std::endl;
     return(0);
 }
