@@ -7,7 +7,7 @@
 CC = clang # compiler to use
 CXX = clang++
 
-CXXFLAGS = -O0
+CXXFLAGS = -O3
 LIBS = -lgmsh -lboost_math_C99
 LDFLAGS = -L/usr/local/lib
 
