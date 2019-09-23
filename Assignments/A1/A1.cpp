@@ -664,10 +664,13 @@ int main (int argc, char **argv)
     );
     std::cerr << " done!" << std::endl;
 
-    std::cerr << "\nFactoring L...";
+
+    std::cerr << "\nFactoring L(" << areas.size() << " by " << areas.size() << ")...";
+    double tick_start = std::clock();
     Eigen::PartialPivLU<Eigen::MatrixXcd> LU_L;
     LU_L.compute(L);
-    std::cerr << " done!" << std::endl;
+    double tick_stop = std::clock();
+    std::cerr << " done in " << (tick_stop-tick_start)/CLOCKS_PER_SEC << " sec" << std::endl;
 
     std::cerr << "\nSolving scattered fields for each source...";
     for(int jj = 0; jj < Ez_inc_all.cols(); jj++)
@@ -678,6 +681,7 @@ int main (int argc, char **argv)
         std::cerr << jj << " ";
     }
     std::cerr << "done!" << std::endl;
+
 
     std::cerr << "\nWriting results to file...";
     WriteMatrixToFile(
