@@ -522,7 +522,7 @@ void BuildBackgroundGreen(
                     1,
                     k_b*a_n
                 );
-                Gmn = j*(M_PI*k_b*a_n*H12 - 2.0*j)/2.0;
+                Gmn = -j/(2.0*k_b*k_b)*(M_PI*k_b*a_n*H12 - 2.0*j);
             }
             else
             {
@@ -534,9 +534,10 @@ void BuildBackgroundGreen(
                     0,
                     k_b*dmn
                 );
-                Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
+                // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
+                Gmn = -j*M_PI*k_b*a_n/2.0*J1*H02;
             }
-            Gmn *= -j/4.0;
+            // Gmn *= -j/4.0;
             G(mm,nn) = Gmn;
             G(nn,mm) = Gmn;
         }
@@ -615,14 +616,9 @@ int main (int argc, char **argv)
     k2_f = k2_f.array() + (1.00*k2_b);
     for(int ik2 = 0; ik2 < k2_f.size(); ik2++)
     {
-        if(
-            (-0.05 < centroids(ik2,0)) &&
-            (centroids(ik2,0) < 0.05)  &&
-            (-0.05 < centroids(ik2,1)) &&
-            (centroids(ik2,1) < 0.05)
-        )
+        if(centroids(ik2,0) < 0)
         {
-            k2_f(ik2) = k2_b*1.1;
+            k2_f(ik2) = k2_b*1.2;
         }
     }
 
