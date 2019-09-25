@@ -9,7 +9,7 @@ CXX = clang++
 
 CXXFLAGS = -O3 -march=native -msse4 -ffast-math -funroll-loops
 LIBS = -lgmsh -lboost_math_C99
-LDFLAGS = -L/usr/local/lib
+LDFLAGS = 
 
 LINKERFLAG = -lm
 

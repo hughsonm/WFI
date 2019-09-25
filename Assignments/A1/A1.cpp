@@ -198,210 +198,116 @@ void BuildTriangulation(
 
     // points will have N rows and 3 columns
     gmsh::open(filename);
-    // use MatrixXd member function conservativeResize(m,n).
     tri.resize(0,4);
-    gmsh::vectorpair dimTags;
-    gmsh::model::getPhysicalGroups(dimTags);
+    std::vector<Eigen::VectorXd> v_tri;
+    std::vector<std::size_t> node_tags;
+    std::vector<double> node_coords;
+    std::vector<double> node_para_coord;
+    gmsh::model::mesh::getNodes(
+        node_tags,
+        node_coords,
+        node_para_coord
+    );
 
-    // Read in the 2d physical groups
-    for(int phys_idx = 0; phys_idx < dimTags.size(); phys_idx++)
+    //std::cerr << "n_nodes = " << node_tags.size() << std::endl;
+    int max_tag = *(std::max_element(node_tags.begin(),node_tags.end()));
+    //std::cerr << "Max tag: " << max_tag << std::endl;
+    points.resize(max_tag+1,3);
+    points.setZero();
+    //std::cerr << points << std::endl;
+    for(int nn = 0; nn < node_tags.size(); nn++)
     {
-        if(verbose)
-        {
-            std::cerr << "Physical Group Number: " << phys_idx;
-            std::cerr << std::endl;
-        }
-        int phys_dim = dimTags[phys_idx].first;
-        int phys_tag = dimTags[phys_idx].second;
-        if(phys_dim != 2)
-        {
-            continue;
-        }
-        if(verbose)
-        {
-            std::cerr << "\tDimension: " << phys_dim << std::endl;
-            std::cerr << "\tTag: " << phys_tag << std::endl;
-        }
-        std::string phys_name;
-        gmsh::model::getPhysicalName(
-            phys_dim,
-            phys_tag,
-            phys_name
-        );
+        int n_tag = node_tags[nn];
+        //std::cerr << "Node with tag = " << n_tag << std::endl;
+        Eigen::Vector3d point;
+        point << node_coords[3*nn+0],node_coords[3*nn+1],node_coords[3*nn+2];
+        //std::cerr << point << std::endl;
+        points.row(n_tag) = point.transpose();
+        //std::cerr << "assigned a row in points" << std::endl;
 
-        if(verbose)
-        {
-            std::cerr << "\tGetting entities for this physical group's";
-            std::cerr << " dimension" << std::endl;
-        }
-        gmsh::vectorpair entities_dimtags_for_phys;
-        gmsh::model::getEntities(
-            entities_dimtags_for_phys,
-            phys_dim
-        );
-        if(verbose)
-        {
-            std::cerr << "\tPhysical Group Name: ";
-            std::cerr << phys_name << std::endl;
-        }
+    }
+
+
+    // Now try going physical group based
+    gmsh::vectorpair physdimtags;
+    gmsh::model::getPhysicalGroups(physdimtags);
+    //std::cerr << "Phys Group Based..." << std::endl;
+    for(int ii = 0; ii < physdimtags.size(); ii++)
+    {
+        int physdim = physdimtags[ii].first;
+        int phystag = physdimtags[ii].second;
         std::vector<int> ent_tags;
         gmsh::model::getEntitiesForPhysicalGroup(
-            phys_dim,
-            phys_tag,
+            physdim,
+            phystag,
             ent_tags
         );
-        if(verbose)
+        //std::cerr << "\t" <<physdim << "," << phystag << std::endl;
+        for(int jj = 0; jj < ent_tags.size(); jj++)
         {
-            std::cerr << "\tEntity Count: " << ent_tags.size();
-            std::cerr << std::endl;
-        }
-
-        std::vector<std::vector<int> > node_tags_for_ele_for_phys;
-
-        for(int ent_idx = 0; ent_idx < ent_tags.size(); ent_idx++)
-        {
-            int ent_for_phys_dim = entities_dimtags_for_phys[ent_idx].first;
-            int ent_for_phys_tag = entities_dimtags_for_phys[ent_idx].second;
-
-            if(verbose)
-            {
-                std::cerr << "\t\tThis physical group has the entity";
-                std::cerr << " with dim = ";
-                std::cerr << ent_for_phys_dim;
-                std::cerr << " and tag = ";
-                std::cerr << ent_for_phys_tag;
-                std::cerr << std::endl;
-            }
-
-            std::string ent_for_phys_type;
-            gmsh::model::getType(
-                ent_for_phys_dim,
-                ent_for_phys_tag,
-                ent_for_phys_type
-            );
-
-            if(verbose)
-            {
-                std::cerr << "\t\tGetting elements and nodes for this";
-                std::cerr << " entity" << std::endl;
-            }
-
-            std::vector<int> ele_for_ent_types;
-            std::vector<std::vector<std::size_t> > ele_for_ent_tags;
-            std::vector<std::vector<std::size_t> > node_for_ent_tags;
-
+            //std::cerr << "\t\t" << ent_tags[jj] << std::endl;
+            std::vector<int> types;
+            std::vector<std::vector<std::size_t> > eletags;
+            std::vector<std::vector<std::size_t> > nodetags;
             gmsh::model::mesh::getElements(
-                ele_for_ent_types,
-                ele_for_ent_tags,
-                node_for_ent_tags,
-                ent_for_phys_dim,
-                ent_for_phys_tag
+                types,
+                eletags,
+                nodetags,
+                physdim,
+                ent_tags[jj]
             );
-            int node_tag_ptr = 0;
-            if(verbose)
+            for(int tt = 0; tt < eletags.size(); tt++)
             {
-                std::cerr << "\t\tGot " << ele_for_ent_types.size();
-                std::cerr << " different types of elements" << std::endl;
-            }
-            for (int type_idx = 0; type_idx < ele_for_ent_types.size(); type_idx++)
-            {
-                if(verbose)
-                {
-                    std::cerr << "\t\tType no. " << type_idx;
-                    std::cerr << " is " << ele_for_ent_types[type_idx] << std::endl;
-                }
-
                 std::string type_name;
                 int type_dim;
                 int type_order;
                 int type_num_nodes;
                 std::vector<double> type_node_coords;
                 gmsh::model::mesh::getElementProperties(
-                    ele_for_ent_types[type_idx],
+                    types[tt],
                     type_name,
                     type_dim,
                     type_order,
                     type_num_nodes,
                     type_node_coords
                 );
-
-                if(verbose)
+                //std::cerr << "\t\t\tT=" << types[tt] << ":";
+                for(int ee = 0; ee < eletags[tt].size();ee++)
                 {
-                    std::cerr << "\t\tType Name: " << type_name << std::endl;
-                    std::cerr << "\t\tDimension: " << type_dim << std::endl;
-                    std::cerr << "\t\tOrder    : " << type_order << std::endl;
-                    std::cerr << "\t\tNum Nodes: " << type_num_nodes << std::endl;
-                    std::cerr << "\t\tCount    : " << ele_for_ent_tags[type_idx].size() << std::endl;
-                    std::cerr << "\t\tTags     : " << std::endl;
-                }
-                // How many elements we got? A lot.
-                int n_new_elements = ele_for_ent_tags[type_idx].size();
-                Eigen::Index cur_n_rows = tri.rows();
-                if(verbose)
-                {
-                    std::cerr << "\t\tTri has " << cur_n_rows << " rows";
-                    std::cerr << " and we add " << n_new_elements;
-                    std::cerr << " for a total of ";
-                    std::cerr << (cur_n_rows + n_new_elements);
-                    std::cerr << std::endl;
-                }
-
-
-                tri.conservativeResize(
-                    cur_n_rows + n_new_elements,
-                    Eigen::NoChange
-                );
-                for(int ele_idx = 0; ele_idx < n_new_elements; ele_idx++)
-                {
-                    //std::cerr << "\t\t" << ele_for_ent_tags[type_idx][ele_idx] << std::endl;
-                    //ele_tags_for_phys.push_back(ele_for_ent_tags[type_idx][ele_idx]);
-                    int add_row = cur_n_rows + ele_idx;
-
-                    for(int cc = 0; cc < type_num_nodes; cc++)
+                    //std::cerr << eletags[tt][ee] << "(";
+                    Eigen::VectorXd element(type_num_nodes+1);
+                    for(int nn = 0; nn < type_num_nodes; nn++)
                     {
-                        tri(add_row,cc) = node_for_ent_tags[type_idx][node_tag_ptr++];
+                        element(nn) = nodetags[tt][ee*type_num_nodes+nn];
+                        //std::cerr << nodetags[tt][ee*type_num_nodes+nn] << ",";
                     }
-                    tri(add_row,3) = phys_tag;
-                }
-            }
-        }
+                    //std::cerr << "),";
+                    element(type_num_nodes) = phystag;
+                    v_tri.push_back(element);
 
-        if(verbose)
-        {
-            std::cerr << "\tThis physical's node tags for each ele:";
-            std::cerr << std::endl;
-            for(int ele_idx = 0; ele_idx < node_tags_for_ele_for_phys.size(); ele_idx++)
-            {
-                std::cerr << "\t";
-                for(int node_idx = 0; node_idx < node_tags_for_ele_for_phys[ele_idx].size(); node_idx++)
-                {
-                    std::cerr << node_tags_for_ele_for_phys[ele_idx][node_idx] << "\t";
                 }
-                std::cerr << std::endl;
+                //std::cerr << std::endl;
             }
         }
     }
-
-    // Read in all of the points (gmsh calls them nodes)
-    std::vector<std::size_t> node_tags;
-    std::vector<double> node_coords;
-    std::vector<double> node_para_coords;
-    gmsh::model::mesh::getNodes(
-        node_tags,
-        node_coords,
-        node_para_coords
-    );
-
-    int max_tag = *(max_element(node_tags.begin(),node_tags.end()));
-    points.resize(max_tag+1,3);
-    points.setZero();
-    int node_coord_ptr = 0;
-    for(int node_idx = 0; node_idx < node_tags.size(); node_idx++)
+    int n_2d_eles = 0;
+    for(int ii = 0; ii < v_tri.size(); ii++)
     {
-        int node_row = node_tags[node_idx];
-        for(int cc = 0; cc < 3; cc++)
+        //std::cerr << v_tri[ii] << std::endl;
+        if(v_tri[ii].size() == 4)
         {
-            points(node_row,cc) = node_coords[node_coord_ptr++];
+            n_2d_eles++;
+        }
+    }
+    tri.resize(n_2d_eles,4);
+    int tri_ptr = 0;
+    for(int ii = 0; ii < v_tri.size(); ii++)
+    {
+        //std::cerr << v_tri[ii] << std::endl;
+        if(v_tri[ii].size() == 4)
+        {
+            tri.row(tri_ptr++) = v_tri[ii].transpose();
+            //std::cerr << "\t" << tri.row(tri_ptr-1);
         }
     }
 }
@@ -432,7 +338,7 @@ void CalculateTriAreas(
         double v1y = qy-py;
         double v2x = rx-px;
         double v2y = ry-py;
-        areas(tri_idx) = (v1x*v2y-v1y*v2x)/2;
+        areas(tri_idx) = std::abs((v1x*v2y-v1y*v2x)/2);
     }
 }
 
@@ -492,10 +398,54 @@ void EvaluateIncidentField(
 
 }
 
-void BuildBackgroundGreen(
+void AssignRelativeConstitutives(
+    Eigen::VectorXcd & eps_r,
+    const Eigen::MatrixXd & tri,
+    const std::string constfilename
+)
+{
+    std::ifstream reader;
+    reader.open(constfilename,std::ifstream::in);
+    std::string ins;
+    reader >> ins;
+    assert(ins.compare("tag") == 0);
+    reader >> ins;
+    assert(ins.compare("eps_rel_real") == 0);
+    reader >> ins;
+    assert(ins.compare("eps_rel_imag") == 0);
+
+    int tag;
+    double eps_rel_real,eps_rel_imag;
+    std::complex<double> eps_rel_complex;
+    eps_r.resize(tri.rows());
+    for(int rr = 0; rr < eps_r.size(); rr++)
+    {
+        eps_r(rr) = 1.0;
+    }
+    while(reader)
+    {
+        reader >>tag;
+        if(reader.eof()) break;
+        reader >> eps_rel_real;
+        reader >> eps_rel_imag;
+        eps_rel_complex.real(eps_rel_real);
+        eps_rel_complex.imag(eps_rel_imag);
+
+        for(int rr = 0; rr < tri.rows(); rr++)
+        {
+            if(tri(rr,3) == tag)
+            {
+                eps_r(rr) = eps_rel_complex;
+            }
+        }
+    }
+    reader.close();
+}
+
+void BuildDomainGreen(
     Eigen::MatrixXcd & G,
-    Eigen::MatrixXd & centroids,
-    Eigen::VectorXd & areas,
+    const Eigen::MatrixXd & centroids,
+    const Eigen::VectorXd & areas,
     double k2_b
 )
 {
@@ -511,13 +461,17 @@ void BuildBackgroundGreen(
     {
         for(int nn = mm; nn < n_tri; nn++)
         {
+            //std::cerr << mm << " " << nn;
             Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
             dxyz = dxyz.array().pow(2);
             double dmn = std::sqrt(dxyz.array().sum());
+
             std::complex<double> Gmn;
             double a_n = std::sqrt(areas[nn]/M_PI);
+            //std::cerr << "dmn = " << dmn << ", a_n = " << a_n << ",";
             if(mm==nn)
             {
+                //std::cerr << " " << k_b*a_n;
                 std::complex<double> H12 = boost::math::cyl_hankel_2(
                     1,
                     k_b*a_n
@@ -526,20 +480,62 @@ void BuildBackgroundGreen(
             }
             else
             {
+                //std::cerr << " " << k_b*a_n;
                 std::complex<double> J1 = boost::math::cyl_bessel_j(
                     1,
                     k_b*a_n
                 );
+                //std::cerr << " " << k_b*dmn;
                 std::complex<double> H02 = boost::math::cyl_hankel_2(
                     0,
                     k_b*dmn
                 );
                 // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
-                Gmn = -j*M_PI*k_b*a_n/2.0*J1*H02;
+                Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
             }
+            //std::cerr << std::endl;
             // Gmn *= -j/4.0;
             G(mm,nn) = Gmn;
             G(nn,mm) = Gmn;
+        }
+    }
+}
+
+void BuildDataGreen(
+    Eigen::MatrixXcd & G,
+    const Eigen::MatrixXd & centroids,
+    const Eigen::VectorXd & areas,
+    const Eigen::MatrixXd & rxlocations,
+    double k2_b
+)
+{
+    int n_rx = rxlocations.rows();
+    int n_ele = areas.size();
+    G.resize(n_rx,n_ele);
+    std::complex<double> j(0,1);
+    double k_b = std::sqrt(k2_b);
+    for(int rr = 0; rr < n_rx; rr++)
+    {
+
+        for(int ee = 0; ee < n_ele; ee++)
+        {
+            Eigen::VectorXd dxyz = (rxlocations.row(rr)-centroids.row(ee)).transpose();
+            dxyz = dxyz.array().pow(2);
+            double d_re = std::sqrt(dxyz.array().sum());
+            double a_e = std::sqrt(areas[ee]/M_PI);
+
+            std::complex<double> J1 = boost::math::cyl_bessel_j(
+                1,
+                k_b*a_e
+            );
+            //std::cerr << " " << k_b*dmn;
+            std::complex<double> H02 = boost::math::cyl_hankel_2(
+                0,
+                k_b*d_re
+            );
+            // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
+            std::complex<double> G_re = -j*M_PI*a_e*J1*H02/2.0/k_b;
+            G(rr,ee) = G_re;
         }
     }
 }
@@ -559,9 +555,17 @@ int main (int argc, char **argv)
         argv[1],
         tri,
         points,
-        false
+        true
     );
     std::cerr << " done!" << std::endl;
+
+    Eigen::VectorXcd eps_r;
+
+    AssignRelativeConstitutives(
+        eps_r,
+        tri,
+        "Tag2EpsRel.txt"
+    );
 
     std::cerr << "\nCalculating triangle areas...";
     Eigen::VectorXd areas;
@@ -570,15 +574,17 @@ int main (int argc, char **argv)
         tri,
         points
     );
+
     std::cerr << " done!" << std::endl;
 
-    std::cerr << "\nCalculating triangle areas...";
+    std::cerr << "\nCalculating triangle centroids...";
     Eigen::MatrixXd centroids;
     CalculateTriCentroids(
         centroids,
         tri,
         points
     );
+
     std::cerr << " done!" << std::endl;
 
     std::cerr << "\nReading antenna file...";
@@ -611,20 +617,12 @@ int main (int argc, char **argv)
     double omega = 2*M_PI*frequency;
     double k2_b = omega*omega/CNAUGHT/CNAUGHT;
 
-    Eigen::VectorXcd k2_f(areas.size());
-    k2_f.setZero();
-    k2_f = k2_f.array() + (1.00*k2_b);
-    for(int ik2 = 0; ik2 < k2_f.size(); ik2++)
-    {
-        if(centroids(ik2,0) < 0)
-        {
-            k2_f(ik2) = k2_b*1.2;
-        }
-    }
+    Eigen::VectorXcd k2_f(eps_r.size());
+    k2_f = eps_r.array()*k2_b;
 
     std::cerr << "\nCalculating background Green function...";
     Eigen::MatrixXcd G_b;
-    BuildBackgroundGreen(
+    BuildDomainGreen(
         G_b,
         centroids,
         areas,
@@ -677,6 +675,24 @@ int main (int argc, char **argv)
         std::cerr << jj << " ";
     }
     std::cerr << "done!" << std::endl;
+
+    Eigen::MatrixXd rxlocations;
+    Eigen::VectorXcd rxcoefficients;
+
+    ReadAntennaFile(
+        rxlocations,
+        rxcoefficients,
+        argv[2]
+    );
+
+    Eigen::MatrixXcd Gd_b;
+    BuildDataGreen(
+        Gd_b,
+        centroids,
+        areas,
+        rxlocations,
+        k2_b
+    );
 
 
     std::cerr << "\nWriting results to file...";
