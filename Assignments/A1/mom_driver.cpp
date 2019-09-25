@@ -14,12 +14,13 @@
 #define CNAUGHT 299792508.7882675
 
 
-Antenna::Antenna(void)
-{
-    location << 0,0,0;
-    direction << 0,0,0;
-    coefficient = 1;
-}
+// Antenna::Antenna(void)
+// {
+//     location << 0,0,0;
+//     direction << 0,0,0;
+//     coefficient = 1;
+//     frequency = 1;
+// }
 
 void Antenna::getField(
     Eigen::VectorXcd & Ez,
@@ -41,6 +42,240 @@ void Antenna::getField(
             k*distances(ipt)
         );
     }
+}
+
+void Mesh::buildTriangulation(
+    std::string filename,
+    bool verbose
+)
+{
+    gmsh::open(filename);
+    tri.resize(0,4);
+    std::vector<Eigen::VectorXd> v_tri;
+    std::vector<std::size_t> node_tags;
+    std::vector<double> node_coords;
+    std::vector<double> node_para_coord;
+    gmsh::model::mesh::getNodes(
+        node_tags,
+        node_coords,
+        node_para_coord
+    );
+
+    //std::cerr << "n_nodes = " << node_tags.size() << std::endl;
+    int max_tag = *(std::max_element(node_tags.begin(),node_tags.end()));
+    //std::cerr << "Max tag: " << max_tag << std::endl;
+    points.resize(max_tag+1,3);
+    points.setZero();
+    //std::cerr << points << std::endl;
+    for(int nn = 0; nn < node_tags.size(); nn++)
+    {
+        int n_tag = node_tags[nn];
+        //std::cerr << "Node with tag = " << n_tag << std::endl;
+        Eigen::Vector3d point;
+        point << node_coords[3*nn+0],node_coords[3*nn+1],node_coords[3*nn+2];
+        //std::cerr << point << std::endl;
+        points.row(n_tag) = point.transpose();
+        //std::cerr << "assigned a row in points" << std::endl;
+
+    }
+
+
+    // Now try going physical group based
+    gmsh::vectorpair physdimtags;
+    gmsh::model::getPhysicalGroups(physdimtags);
+    //std::cerr << "Phys Group Based..." << std::endl;
+    for(int ii = 0; ii < physdimtags.size(); ii++)
+    {
+        int physdim = physdimtags[ii].first;
+        int phystag = physdimtags[ii].second;
+        std::vector<int> ent_tags;
+        gmsh::model::getEntitiesForPhysicalGroup(
+            physdim,
+            phystag,
+            ent_tags
+        );
+        //std::cerr << "\t" <<physdim << "," << phystag << std::endl;
+        for(int jj = 0; jj < ent_tags.size(); jj++)
+        {
+            //std::cerr << "\t\t" << ent_tags[jj] << std::endl;
+            std::vector<int> types;
+            std::vector<std::vector<std::size_t> > eletags;
+            std::vector<std::vector<std::size_t> > nodetags;
+            gmsh::model::mesh::getElements(
+                types,
+                eletags,
+                nodetags,
+                physdim,
+                ent_tags[jj]
+            );
+            for(int tt = 0; tt < eletags.size(); tt++)
+            {
+                std::string type_name;
+                int type_dim;
+                int type_order;
+                int type_num_nodes;
+                std::vector<double> type_node_coords;
+                gmsh::model::mesh::getElementProperties(
+                    types[tt],
+                    type_name,
+                    type_dim,
+                    type_order,
+                    type_num_nodes,
+                    type_node_coords
+                );
+                //std::cerr << "\t\t\tT=" << types[tt] << ":";
+                for(int ee = 0; ee < eletags[tt].size();ee++)
+                {
+                    //std::cerr << eletags[tt][ee] << "(";
+                    Eigen::VectorXd element(type_num_nodes+1);
+                    for(int nn = 0; nn < type_num_nodes; nn++)
+                    {
+                        element(nn) = nodetags[tt][ee*type_num_nodes+nn];
+                        //std::cerr << nodetags[tt][ee*type_num_nodes+nn] << ",";
+                    }
+                    //std::cerr << "),";
+                    element(type_num_nodes) = phystag;
+                    v_tri.push_back(element);
+
+                }
+                //std::cerr << std::endl;
+            }
+        }
+    }
+    int n_2d_eles = 0;
+    for(int ii = 0; ii < v_tri.size(); ii++)
+    {
+        //std::cerr << v_tri[ii] << std::endl;
+        if(v_tri[ii].size() == 4)
+        {
+            n_2d_eles++;
+        }
+    }
+    tri.resize(n_2d_eles,4);
+    int tri_ptr = 0;
+    for(int ii = 0; ii < v_tri.size(); ii++)
+    {
+        //std::cerr << v_tri[ii] << std::endl;
+        if(v_tri[ii].size() == 4)
+        {
+            tri.row(tri_ptr++) = v_tri[ii].transpose();
+            //std::cerr << "\t" << tri.row(tri_ptr-1);
+        }
+    }
+}
+
+Chamber::Chamber(std::string meshfile)
+{
+    Ez_inc_ready = false;
+    Ez_tot_ready = false;
+    Ez_sct_ready = false;
+    mesh.buildTriangulation(meshfile);
+}
+
+void Chamber::addTarget(std::string targetfile)
+{
+    std::ifstream reader;
+    reader.open(targetfile,std::ifstream::in);
+    std::string ins;
+    reader >> ins;
+    assert(ins.compare("tag") == 0);
+    reader >> ins;
+    assert(ins.compare("eps_rel_real") == 0);
+    reader >> ins;
+    assert(ins.compare("eps_rel_imag") == 0);
+
+    int tag;
+    double eps_rel_real,eps_rel_imag;
+    std::complex<double> eps_rel_complex;
+    eps_r.resize(mesh.tri.rows());
+    for(int rr = 0; rr < eps_r.size(); rr++)
+    {
+        eps_r(rr) = 1.0;
+    }
+    while(reader)
+    {
+        reader >>tag;
+        if(reader.eof()) break;
+        reader >> eps_rel_real;
+        reader >> eps_rel_imag;
+        eps_rel_complex.real(eps_rel_real);
+        eps_rel_complex.imag(eps_rel_imag);
+
+        for(int rr = 0; rr < mesh.tri.rows(); rr++)
+        {
+            if(mesh.tri(rr,3) == tag)
+            {
+                eps_r(rr) = eps_rel_complex;
+            }
+        }
+    }
+    reader.close();
+}
+
+void Chamber::setupAntennas(std::string antennafile)
+{
+    std::ifstream reader;
+    reader.open(antennafile,std::ifstream::in);
+    std::string ins;
+    reader >> ins;
+    assert(ins.compare("x") == 0);
+    reader >> ins;
+    assert(ins.compare("y") == 0);
+    reader >> ins;
+    assert(ins.compare("z") == 0);
+    reader >> ins;
+    assert(ins.compare("magnitude") == 0);
+    reader >> ins;
+    assert(ins.compare("phase") == 0);
+    reader >> ins;
+    assert(ins.compare("style") == 0);
+    double x,y,z,mag,phs;
+    AntennaStyle_t sty;
+    std::string sty_string;
+    antennas.resize(0);
+    Antenna iant;
+    while(reader)
+    {
+        reader >> x;
+        if(reader.eof()) break;
+        reader >> y;
+        reader >> z;
+        reader >> mag;
+        reader >> phs;
+        reader >> sty_string;
+        iant.coefficient = std::polar(mag,phs);
+        iant.frequency = frequency;
+        if(sty_string.compare("planewave") == 0)
+        {
+            iant.style = PlaneWave;
+            iant.direction << x,y,z;
+        }
+        else if(sty_string.compare("linesource") == 0)
+        {
+            iant.style = LineSource;
+            iant.location << x,y,z;
+        }
+        else if(sty_string.compare("Patch") == 0)
+        {
+            iant.style = Patch;
+            iant.location << x,y,z;
+        }
+        antennas.push_back(iant);
+    }
+    reader.close();
+}
+
+void Chamber::setFrequency(double freq)
+{
+    frequency = freq;
+    for(int aa = 0; aa < antennas.size(); aa++)
+    {
+        antennas[aa].frequency = freq;
+    }
+}
+void Chamber::getEzTot(Eigen::MatrixXcd & Ezdest)
+{
+
 }
 
 
@@ -213,136 +448,136 @@ void ReadAntennaFile(
     reader.close();
 }
 
-void BuildTriangulation(
-    std::string filename,
-    Eigen::MatrixXd & tri,
-    Eigen::MatrixXd & points,
-    bool verbose
-)
-{
-    // tri is a triangulation with N rows, 4 columns
-    // Column 1: index of point 1 in points
-    // Column 2: index of point 2 in points
-    // Column 3: index of point 3 in points
-    // Column 4: group tag
-    // points is the xyz coordinates of each point referenced by the
-    // triangulation.
-
-    // points will have N rows and 3 columns
-    gmsh::open(filename);
-    tri.resize(0,4);
-    std::vector<Eigen::VectorXd> v_tri;
-    std::vector<std::size_t> node_tags;
-    std::vector<double> node_coords;
-    std::vector<double> node_para_coord;
-    gmsh::model::mesh::getNodes(
-        node_tags,
-        node_coords,
-        node_para_coord
-    );
-
-    //std::cerr << "n_nodes = " << node_tags.size() << std::endl;
-    int max_tag = *(std::max_element(node_tags.begin(),node_tags.end()));
-    //std::cerr << "Max tag: " << max_tag << std::endl;
-    points.resize(max_tag+1,3);
-    points.setZero();
-    //std::cerr << points << std::endl;
-    for(int nn = 0; nn < node_tags.size(); nn++)
-    {
-        int n_tag = node_tags[nn];
-        //std::cerr << "Node with tag = " << n_tag << std::endl;
-        Eigen::Vector3d point;
-        point << node_coords[3*nn+0],node_coords[3*nn+1],node_coords[3*nn+2];
-        //std::cerr << point << std::endl;
-        points.row(n_tag) = point.transpose();
-        //std::cerr << "assigned a row in points" << std::endl;
-
-    }
-
-
-    // Now try going physical group based
-    gmsh::vectorpair physdimtags;
-    gmsh::model::getPhysicalGroups(physdimtags);
-    //std::cerr << "Phys Group Based..." << std::endl;
-    for(int ii = 0; ii < physdimtags.size(); ii++)
-    {
-        int physdim = physdimtags[ii].first;
-        int phystag = physdimtags[ii].second;
-        std::vector<int> ent_tags;
-        gmsh::model::getEntitiesForPhysicalGroup(
-            physdim,
-            phystag,
-            ent_tags
-        );
-        //std::cerr << "\t" <<physdim << "," << phystag << std::endl;
-        for(int jj = 0; jj < ent_tags.size(); jj++)
-        {
-            //std::cerr << "\t\t" << ent_tags[jj] << std::endl;
-            std::vector<int> types;
-            std::vector<std::vector<std::size_t> > eletags;
-            std::vector<std::vector<std::size_t> > nodetags;
-            gmsh::model::mesh::getElements(
-                types,
-                eletags,
-                nodetags,
-                physdim,
-                ent_tags[jj]
-            );
-            for(int tt = 0; tt < eletags.size(); tt++)
-            {
-                std::string type_name;
-                int type_dim;
-                int type_order;
-                int type_num_nodes;
-                std::vector<double> type_node_coords;
-                gmsh::model::mesh::getElementProperties(
-                    types[tt],
-                    type_name,
-                    type_dim,
-                    type_order,
-                    type_num_nodes,
-                    type_node_coords
-                );
-                //std::cerr << "\t\t\tT=" << types[tt] << ":";
-                for(int ee = 0; ee < eletags[tt].size();ee++)
-                {
-                    //std::cerr << eletags[tt][ee] << "(";
-                    Eigen::VectorXd element(type_num_nodes+1);
-                    for(int nn = 0; nn < type_num_nodes; nn++)
-                    {
-                        element(nn) = nodetags[tt][ee*type_num_nodes+nn];
-                        //std::cerr << nodetags[tt][ee*type_num_nodes+nn] << ",";
-                    }
-                    //std::cerr << "),";
-                    element(type_num_nodes) = phystag;
-                    v_tri.push_back(element);
-
-                }
-                //std::cerr << std::endl;
-            }
-        }
-    }
-    int n_2d_eles = 0;
-    for(int ii = 0; ii < v_tri.size(); ii++)
-    {
-        //std::cerr << v_tri[ii] << std::endl;
-        if(v_tri[ii].size() == 4)
-        {
-            n_2d_eles++;
-        }
-    }
-    tri.resize(n_2d_eles,4);
-    int tri_ptr = 0;
-    for(int ii = 0; ii < v_tri.size(); ii++)
-    {
-        //std::cerr << v_tri[ii] << std::endl;
-        if(v_tri[ii].size() == 4)
-        {
-            tri.row(tri_ptr++) = v_tri[ii].transpose();
-            //std::cerr << "\t" << tri.row(tri_ptr-1);
-        }
-    }
-}
+// void BuildTriangulation(
+//     std::string filename,
+//     Eigen::MatrixXd & tri,
+//     Eigen::MatrixXd & points,
+//     bool verbose
+// )
+// {
+//     // tri is a triangulation with N rows, 4 columns
+//     // Column 1: index of point 1 in points
+//     // Column 2: index of point 2 in points
+//     // Column 3: index of point 3 in points
+//     // Column 4: group tag
+//     // points is the xyz coordinates of each point referenced by the
+//     // triangulation.
+//
+//     // points will have N rows and 3 columns
+//     gmsh::open(filename);
+//     tri.resize(0,4);
+//     std::vector<Eigen::VectorXd> v_tri;
+//     std::vector<std::size_t> node_tags;
+//     std::vector<double> node_coords;
+//     std::vector<double> node_para_coord;
+//     gmsh::model::mesh::getNodes(
+//         node_tags,
+//         node_coords,
+//         node_para_coord
+//     );
+//
+//     //std::cerr << "n_nodes = " << node_tags.size() << std::endl;
+//     int max_tag = *(std::max_element(node_tags.begin(),node_tags.end()));
+//     //std::cerr << "Max tag: " << max_tag << std::endl;
+//     points.resize(max_tag+1,3);
+//     points.setZero();
+//     //std::cerr << points << std::endl;
+//     for(int nn = 0; nn < node_tags.size(); nn++)
+//     {
+//         int n_tag = node_tags[nn];
+//         //std::cerr << "Node with tag = " << n_tag << std::endl;
+//         Eigen::Vector3d point;
+//         point << node_coords[3*nn+0],node_coords[3*nn+1],node_coords[3*nn+2];
+//         //std::cerr << point << std::endl;
+//         points.row(n_tag) = point.transpose();
+//         //std::cerr << "assigned a row in points" << std::endl;
+//
+//     }
+//
+//
+//     // Now try going physical group based
+//     gmsh::vectorpair physdimtags;
+//     gmsh::model::getPhysicalGroups(physdimtags);
+//     //std::cerr << "Phys Group Based..." << std::endl;
+//     for(int ii = 0; ii < physdimtags.size(); ii++)
+//     {
+//         int physdim = physdimtags[ii].first;
+//         int phystag = physdimtags[ii].second;
+//         std::vector<int> ent_tags;
+//         gmsh::model::getEntitiesForPhysicalGroup(
+//             physdim,
+//             phystag,
+//             ent_tags
+//         );
+//         //std::cerr << "\t" <<physdim << "," << phystag << std::endl;
+//         for(int jj = 0; jj < ent_tags.size(); jj++)
+//         {
+//             //std::cerr << "\t\t" << ent_tags[jj] << std::endl;
+//             std::vector<int> types;
+//             std::vector<std::vector<std::size_t> > eletags;
+//             std::vector<std::vector<std::size_t> > nodetags;
+//             gmsh::model::mesh::getElements(
+//                 types,
+//                 eletags,
+//                 nodetags,
+//                 physdim,
+//                 ent_tags[jj]
+//             );
+//             for(int tt = 0; tt < eletags.size(); tt++)
+//             {
+//                 std::string type_name;
+//                 int type_dim;
+//                 int type_order;
+//                 int type_num_nodes;
+//                 std::vector<double> type_node_coords;
+//                 gmsh::model::mesh::getElementProperties(
+//                     types[tt],
+//                     type_name,
+//                     type_dim,
+//                     type_order,
+//                     type_num_nodes,
+//                     type_node_coords
+//                 );
+//                 //std::cerr << "\t\t\tT=" << types[tt] << ":";
+//                 for(int ee = 0; ee < eletags[tt].size();ee++)
+//                 {
+//                     //std::cerr << eletags[tt][ee] << "(";
+//                     Eigen::VectorXd element(type_num_nodes+1);
+//                     for(int nn = 0; nn < type_num_nodes; nn++)
+//                     {
+//                         element(nn) = nodetags[tt][ee*type_num_nodes+nn];
+//                         //std::cerr << nodetags[tt][ee*type_num_nodes+nn] << ",";
+//                     }
+//                     //std::cerr << "),";
+//                     element(type_num_nodes) = phystag;
+//                     v_tri.push_back(element);
+//
+//                 }
+//                 //std::cerr << std::endl;
+//             }
+//         }
+//     }
+//     int n_2d_eles = 0;
+//     for(int ii = 0; ii < v_tri.size(); ii++)
+//     {
+//         //std::cerr << v_tri[ii] << std::endl;
+//         if(v_tri[ii].size() == 4)
+//         {
+//             n_2d_eles++;
+//         }
+//     }
+//     tri.resize(n_2d_eles,4);
+//     int tri_ptr = 0;
+//     for(int ii = 0; ii < v_tri.size(); ii++)
+//     {
+//         //std::cerr << v_tri[ii] << std::endl;
+//         if(v_tri[ii].size() == 4)
+//         {
+//             tri.row(tri_ptr++) = v_tri[ii].transpose();
+//             //std::cerr << "\t" << tri.row(tri_ptr-1);
+//         }
+//     }
+// }
 
 void CalculateTriAreas(
     Eigen::VectorXd & areas,
@@ -399,49 +634,7 @@ void CalculateTriCentroids(
 
 
 
-void AssignRelativeConstitutives(
-    Eigen::VectorXcd & eps_r,
-    const Eigen::MatrixXd & tri,
-    const std::string constfilename
-)
-{
-    std::ifstream reader;
-    reader.open(constfilename,std::ifstream::in);
-    std::string ins;
-    reader >> ins;
-    assert(ins.compare("tag") == 0);
-    reader >> ins;
-    assert(ins.compare("eps_rel_real") == 0);
-    reader >> ins;
-    assert(ins.compare("eps_rel_imag") == 0);
 
-    int tag;
-    double eps_rel_real,eps_rel_imag;
-    std::complex<double> eps_rel_complex;
-    eps_r.resize(tri.rows());
-    for(int rr = 0; rr < eps_r.size(); rr++)
-    {
-        eps_r(rr) = 1.0;
-    }
-    while(reader)
-    {
-        reader >>tag;
-        if(reader.eof()) break;
-        reader >> eps_rel_real;
-        reader >> eps_rel_imag;
-        eps_rel_complex.real(eps_rel_real);
-        eps_rel_complex.imag(eps_rel_imag);
-
-        for(int rr = 0; rr < tri.rows(); rr++)
-        {
-            if(tri(rr,3) == tag)
-            {
-                eps_r(rr) = eps_rel_complex;
-            }
-        }
-    }
-    reader.close();
-}
 
 void BuildDomainGreen(
     Eigen::MatrixXcd & G,

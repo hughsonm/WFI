@@ -8,30 +8,53 @@ enum AntennaStyle_t
     Patch
 };
 
+
+
+class Mesh
+{
+public:
+    void buildTriangulation(
+        std::string filename,
+        bool verbose=false
+    );
+    Eigen::MatrixXd points;
+    Eigen::MatrixXd tri;
+    Eigen::VectorXd centroids;
+    Eigen::VectorXd areas;
+};
+
 class Antenna
 {
+public:
     AntennaStyle_t style;
     Eigen::Vector3d location;
     Eigen::Vector3d direction;
     double frequency;
     std::complex<double> coefficient;
-private:
-public:
-    Antenna();
     void getField(
-        Eigen::MatrixXcd & Ez,
+        Eigen::VectorXcd & Ez,
         const Eigen::MatrixXd & points
     );
-    ~Antenna();
 };
 
-void EvaluateIncidentField(
-    Eigen::VectorXcd & obs_Ez,
-    const Eigen::VectorXd source_loc,
-    const std::complex<double> source_coeff,
-    const double frequency,
-    const Eigen::MatrixXd & obs_pts
-);
+class Chamber
+{
+private:
+    double frequency;
+    Eigen::MatrixXcd Ez_inc,Ez_tot,Ez_sct;
+    bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready;
+public:
+    Chamber(std::string meshfile);
+    void addTarget(std::string targetfile);
+    void setupAntennas(std::string antennafile);
+    void setFrequency(double freq);
+    void getEzTot(Eigen::MatrixXcd & Ezdest);
+    std::vector<Antenna> antennas;
+    Mesh mesh;
+    Eigen::VectorXcd eps_r;
+    Eigen::VectorXcd k2_f;
+    std::complex<double> k2_b;
+};
 
 void WriteMatrixToFile(
     std::string filename,

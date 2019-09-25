@@ -22,13 +22,13 @@ A1: A1.o mom_driver.o
 	${CXX} ${CXXFLAGS} ${LIBS} ${LDFLAGS} -o A1.out A1.o mom_driver.o #Build A1 from its dependencies
 
 # My A1.o file depends on A1.cpp
-A1.o: A1.cpp
+A1.o: A1.cpp mom_driver.h
 	@echo "Building object file A1"
 	${CXX} ${CXXFLAGS} -c -o A1.o A1.cpp
 # CXX and CXXFLAGS are special variables. make will use them to
 # build A1.o. make is smart! I just need to tell it dependencies
 
-mom_driver.o: mom_driver.cpp
+mom_driver.o: mom_driver.cpp mom_driver.h
 	@echo "Building object file mom_driver"
 	${CXX} ${CXXFLAGS} -c -o mom_driver.o mom_driver.cpp
 
