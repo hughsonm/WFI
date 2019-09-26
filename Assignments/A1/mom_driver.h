@@ -16,18 +16,21 @@ enum AntennaStyle_t
 
 class Mesh
 {
+private:
+    void CalculateTriAreas();
+    void CalculateTriCentroids();
 public:
     void buildTriangulation(
         std::string filename,
         bool verbose=false
     );
     void buildDomainGreen(
-        Eigen::MatrixXcd G,
+        Eigen::MatrixXcd & G,
         std::complex<double> k2_b
     );
     Eigen::MatrixXd points;
     Eigen::MatrixXd tri;
-    Eigen::VectorXd centroids;
+    Eigen::MatrixXd centroids;
     Eigen::VectorXd areas;
 };
 

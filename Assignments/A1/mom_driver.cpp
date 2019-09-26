@@ -23,20 +23,45 @@ void Antenna::getField(
 )
 {
     int n_points = points.rows();
-    Eigen::VectorXd distances(n_points);
-    for(int dd = 0; dd < distances.size(); dd++)
-    {
-        distances(dd) = std::sqrt((location - points.row(dd).transpose()).array().pow(2).sum());
-    }
     double k = 2*M_PI*frequency/CNAUGHT;
     Ez.resize(n_points);
-    for(int ipt = 0; ipt < Ez.size(); ipt++)
+    std::complex<double> j_imag(0,1);
+
+    switch(style)
     {
-        Ez(ipt) = boost::math::cyl_hankel_2(
-            0,
-            k*distances(ipt)
-        );
+        case LineSource:
+        {
+            Eigen::VectorXd distances(n_points);
+            for(int dd = 0; dd < distances.size(); dd++)
+            {
+                distances(dd) = std::sqrt((location - points.row(dd).transpose()).array().pow(2).sum());
+            }
+            for(int ipt = 0; ipt < Ez.size(); ipt++)
+            {
+                Ez(ipt) = boost::math::cyl_hankel_2(
+                    0,
+                    k*distances(ipt)
+                );
+            }
+            break;
+        }
+        case PlaneWave:
+        {
+            for(int ipt = 0; ipt < Ez.size(); ipt++)
+            {
+                double phase = points.row(ipt)*direction;
+                Ez(ipt) = std::exp(j_imag*phase);
+            }
+
+            break;
+        }
+        case Patch:
+        {
+            assert(0==1);
+        }
     }
+
+
 }
 
 void Mesh::buildTriangulation(
@@ -157,15 +182,71 @@ void Mesh::buildTriangulation(
             //std::cerr << "\t" << tri.row(tri_ptr-1);
         }
     }
+    std::cerr << "Built triangulation. Found ";
+    std::cerr << tri.rows();
+    std::cerr << " triangles, and ";
+    std::cerr << points.rows();
+    std::cerr << " points." << std::endl;
+
+    std::cerr << "Calculating tri areas...";
+    CalculateTriAreas();
+    std::cerr << "done!" << std::endl;
+    std::cerr << "Calculating tri centroids...";
+    CalculateTriCentroids();
+    std::cerr << "done!" << std::endl;
+}
+
+void Mesh::CalculateTriAreas()
+{
+    assert(tri.cols() == 4);
+    assert(points.cols() == 3);
+    areas.resize(tri.rows());
+    for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
+    {
+        Eigen::MatrixXd itri = tri.block(tri_idx,0,1,3);
+        int p_idx = itri(0);
+        int q_idx = itri(1);
+        int r_idx = itri(2);
+        double px = points(p_idx,0);
+        double py = points(p_idx,1);
+        double qx = points(q_idx,0);
+        double qy = points(q_idx,1);
+        double rx = points(r_idx,0);
+        double ry = points(r_idx,1);
+        double v1x = qx-px;
+        double v1y = qy-py;
+        double v2x = rx-px;
+        double v2y = ry-py;
+        areas(tri_idx) = std::abs((v1x*v2y-v1y*v2x)/2);
+    }
+}
+
+void Mesh::CalculateTriCentroids()
+{
+    assert(tri.cols() == 4);
+    assert(points.cols() == 3);
+    centroids.resize(tri.rows(),3);
+    centroids.setZero();
+    for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
+    {
+        Eigen::VectorXd itri = tri.block(tri_idx,0,1,3).transpose();
+        Eigen::VectorXd tx(3),ty(3),tz(3);
+        tx << points(itri(0),0),points(itri(1),0),points(itri(2),0);
+        ty << points(itri(0),1),points(itri(1),1),points(itri(2),1);
+        tz << points(itri(0),2),points(itri(1),2),points(itri(2),2);
+        Eigen::VectorXd centroid(3);
+        centroid << tx.array().mean(),ty.array().mean(),tz.array().mean();
+        centroids.block(tri_idx,0,1,3) = centroid.transpose();
+    }
 }
 
 void Mesh::buildDomainGreen(
-    Eigen::MatrixXcd G,
+    Eigen::MatrixXcd & G,
     std::complex<double> k2_b
 )
 {
     int n_tri = areas.size();
-
+    std::cerr << "n_tris = " << n_tri << std::endl;
     G.resize(n_tri,n_tri);
 
     std::complex<double> j(0,1);
@@ -225,6 +306,7 @@ Chamber::Chamber(std::string meshfile)
     G_b_domain_ready = false;
     mesh.buildTriangulation(meshfile);
 }
+
 
 void Chamber::addTarget(std::string targetfile)
 {
@@ -346,64 +428,109 @@ void Chamber::setFrequency(double freq)
 }
 void Chamber::getDomainEzTot(Eigen::MatrixXcd & Ezdest)
 {
+    int entry_point = 0;
     if(Ez_tot_ready)
     {
-        Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
-        Ezdest = Ez_tot;
+        entry_point = 3;
     }
     else if(Ez_inc_ready && Ez_sct_ready)
     {
-
-        // build Ez_tot
-        Ez_tot = Ez_inc + Ez_sct;
-        Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
-        Ezdest = Ez_tot;
-        Ez_tot_ready = true;
+        entry_point = 2;
     }
     else if(G_b_domain_ready)
     {
-        // Get incident fields first.
-        Ez_tot.resize(mesh.areas.size(),antennas.size());
-        Ez_tot.setZero();
-        for(int jj = 0; jj < Ez_tot.cols(); jj++)
-        {
-            Ez_sct.col(jj) = LU_L.solve(
-                -G_b_domain*(
-                    Chi*Ez_inc.col(jj)
-                )
-            );
-        }
-        Ez_tot = Ez_inc + Ez_sct;
-        Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
-        Ezdest = Ez_tot;
-        Ez_tot_ready = true;
-        Ez_sct_ready = true;
+        entry_point = 1;
     }
     else
     {
-        //Gotta rebuild everything.
-        mesh.buildDomainGreen(
-            G_b_domain,
-            k2_b
-        );
-        Chi.resize(k2_f.size(),k2_f.size());
-        Chi.setZero();
-        for(int dd = 0; dd < Chi.cols();dd++)
+        entry_point = 0;
+    }
+    std::cerr << "entrypoint = " << entry_point << std::endl;
+    switch(entry_point)
+    {
+        case 0:
         {
-            Chi(dd,dd) = k2_f(dd)-k2_b;
+
+            std::cerr << "need to calculate incident fields" << std::endl;
+
+            std::cerr << "Building domain green..." << std::endl;
+            mesh.buildDomainGreen(
+                G_b_domain,
+                k2_b
+            );
+            std::cerr << "G:(" << G_b_domain.rows() << "," << G_b_domain.cols() << ")" << std::endl;
+            std::cerr << "Building Chi..." << std::endl;
+            Chi.resize(k2_f.size(),k2_f.size());
+            Chi.setZero();
+            for(int dd = 0; dd < Chi.cols();dd++)
+            {
+                Chi(dd,dd) = k2_f(dd)-k2_b;
+            }
+            std::cerr << "Building L_domain" << std::endl;
+            L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
+            std::cerr << "resized,";
+            L_domain = G_b_domain;
+            std::cerr << L_domain.cols() << std::endl;
+            std::cerr << "assigned,";
+            std::cerr << Chi.cols();
+            for(int cc = 0; cc< Chi.cols(); cc++)
+            {
+
+                L_domain.col(cc) *= Chi(cc,cc);
+                L_domain(cc,cc) += 1.0;
+            }
+            std::cerr << "filled,";
+            LU_L.compute(L_domain);
+            std::cerr << "factored" << std::endl;
         }
-        L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
-        L_domain = G_b_domain;
-        for(int cc = 0; cc< Chi.cols(); cc++)
+        case 1:
         {
-            L_domain.col(cc) *= Chi(cc);
-            L_domain(cc,cc) += 1.0;
+            std::cerr << "Resizing Ez_sct,tot to " << mesh.areas.size() << " by " << antennas.size() << "..." << std::endl;
+            Ez_tot.resize(mesh.areas.size(),antennas.size());
+            Ez_tot.setZero();
+            Ez_sct.resize(mesh.areas.size(),antennas.size());
+            Ez_sct.setZero();
+            std::cerr << "it worked!!" << std::endl;
+            for(int jj = 0; jj < Ez_tot.cols(); jj++)
+            {
+                std::cerr << "make chiez,";
+                std::cerr << Chi.rows() << std::endl;
+                std::cerr << Chi.cols() << std::endl;
+                std::cerr << Ez_inc.col(jj).size() << std::endl;
+                Eigen::VectorXcd chiez = Chi*Ez_inc.col(jj);
+                std::cerr << "G_b,";
+                chiez = -G_b_domain*chiez;
+                std::cerr << "solve,";
+                chiez = LU_L.solve(chiez);
+                std::cerr << "put back" << std::endl;
+                Ez_sct.col(jj) = chiez;
+                // Ez_sct.col(jj) = LU_L.solve(
+                //     -G_b_domain*(
+                //         Chi*Ez_inc.col(jj)
+                //     )
+                // );
+            }
+            Ez_tot = Ez_inc + Ez_sct;
+            Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
+            Ezdest = Ez_tot;
+            Ez_tot_ready = true;
+            Ez_sct_ready = true;
         }
-        Ez_sct.resize(Ez_inc.rows(),Ez_inc.cols());
+        case 2:
+        {
+            Ez_tot = Ez_inc + Ez_sct;
+            Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
+            Ezdest = Ez_tot;
+            Ez_tot_ready = true;
+        }
+
+        case 3:
+        {
+            Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
+            Ezdest = Ez_tot;
+        }
     }
 }
-
-
 
 
 void WriteMatrixToFile(
@@ -574,195 +701,6 @@ void ReadAntennaFile(
 
     reader.close();
 }
-
-// void BuildTriangulation(
-//     std::string filename,
-//     Eigen::MatrixXd & tri,
-//     Eigen::MatrixXd & points,
-//     bool verbose
-// )
-// {
-//     // tri is a triangulation with N rows, 4 columns
-//     // Column 1: index of point 1 in points
-//     // Column 2: index of point 2 in points
-//     // Column 3: index of point 3 in points
-//     // Column 4: group tag
-//     // points is the xyz coordinates of each point referenced by the
-//     // triangulation.
-//
-//     // points will have N rows and 3 columns
-//     gmsh::open(filename);
-//     tri.resize(0,4);
-//     std::vector<Eigen::VectorXd> v_tri;
-//     std::vector<std::size_t> node_tags;
-//     std::vector<double> node_coords;
-//     std::vector<double> node_para_coord;
-//     gmsh::model::mesh::getNodes(
-//         node_tags,
-//         node_coords,
-//         node_para_coord
-//     );
-//
-//     //std::cerr << "n_nodes = " << node_tags.size() << std::endl;
-//     int max_tag = *(std::max_element(node_tags.begin(),node_tags.end()));
-//     //std::cerr << "Max tag: " << max_tag << std::endl;
-//     points.resize(max_tag+1,3);
-//     points.setZero();
-//     //std::cerr << points << std::endl;
-//     for(int nn = 0; nn < node_tags.size(); nn++)
-//     {
-//         int n_tag = node_tags[nn];
-//         //std::cerr << "Node with tag = " << n_tag << std::endl;
-//         Eigen::Vector3d point;
-//         point << node_coords[3*nn+0],node_coords[3*nn+1],node_coords[3*nn+2];
-//         //std::cerr << point << std::endl;
-//         points.row(n_tag) = point.transpose();
-//         //std::cerr << "assigned a row in points" << std::endl;
-//
-//     }
-//
-//
-//     // Now try going physical group based
-//     gmsh::vectorpair physdimtags;
-//     gmsh::model::getPhysicalGroups(physdimtags);
-//     //std::cerr << "Phys Group Based..." << std::endl;
-//     for(int ii = 0; ii < physdimtags.size(); ii++)
-//     {
-//         int physdim = physdimtags[ii].first;
-//         int phystag = physdimtags[ii].second;
-//         std::vector<int> ent_tags;
-//         gmsh::model::getEntitiesForPhysicalGroup(
-//             physdim,
-//             phystag,
-//             ent_tags
-//         );
-//         //std::cerr << "\t" <<physdim << "," << phystag << std::endl;
-//         for(int jj = 0; jj < ent_tags.size(); jj++)
-//         {
-//             //std::cerr << "\t\t" << ent_tags[jj] << std::endl;
-//             std::vector<int> types;
-//             std::vector<std::vector<std::size_t> > eletags;
-//             std::vector<std::vector<std::size_t> > nodetags;
-//             gmsh::model::mesh::getElements(
-//                 types,
-//                 eletags,
-//                 nodetags,
-//                 physdim,
-//                 ent_tags[jj]
-//             );
-//             for(int tt = 0; tt < eletags.size(); tt++)
-//             {
-//                 std::string type_name;
-//                 int type_dim;
-//                 int type_order;
-//                 int type_num_nodes;
-//                 std::vector<double> type_node_coords;
-//                 gmsh::model::mesh::getElementProperties(
-//                     types[tt],
-//                     type_name,
-//                     type_dim,
-//                     type_order,
-//                     type_num_nodes,
-//                     type_node_coords
-//                 );
-//                 //std::cerr << "\t\t\tT=" << types[tt] << ":";
-//                 for(int ee = 0; ee < eletags[tt].size();ee++)
-//                 {
-//                     //std::cerr << eletags[tt][ee] << "(";
-//                     Eigen::VectorXd element(type_num_nodes+1);
-//                     for(int nn = 0; nn < type_num_nodes; nn++)
-//                     {
-//                         element(nn) = nodetags[tt][ee*type_num_nodes+nn];
-//                         //std::cerr << nodetags[tt][ee*type_num_nodes+nn] << ",";
-//                     }
-//                     //std::cerr << "),";
-//                     element(type_num_nodes) = phystag;
-//                     v_tri.push_back(element);
-//
-//                 }
-//                 //std::cerr << std::endl;
-//             }
-//         }
-//     }
-//     int n_2d_eles = 0;
-//     for(int ii = 0; ii < v_tri.size(); ii++)
-//     {
-//         //std::cerr << v_tri[ii] << std::endl;
-//         if(v_tri[ii].size() == 4)
-//         {
-//             n_2d_eles++;
-//         }
-//     }
-//     tri.resize(n_2d_eles,4);
-//     int tri_ptr = 0;
-//     for(int ii = 0; ii < v_tri.size(); ii++)
-//     {
-//         //std::cerr << v_tri[ii] << std::endl;
-//         if(v_tri[ii].size() == 4)
-//         {
-//             tri.row(tri_ptr++) = v_tri[ii].transpose();
-//             //std::cerr << "\t" << tri.row(tri_ptr-1);
-//         }
-//     }
-// }
-
-void CalculateTriAreas(
-    Eigen::VectorXd & areas,
-    const Eigen::MatrixXd & tri,
-    const Eigen::MatrixXd & points,
-    bool verbose
-)
-{
-    assert(tri.cols() == 4);
-    assert(points.cols() == 3);
-    areas.resize(tri.rows());
-    for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
-    {
-        Eigen::MatrixXd itri = tri.block(tri_idx,0,1,3);
-        int p_idx = itri(0);
-        int q_idx = itri(1);
-        int r_idx = itri(2);
-        double px = points(p_idx,0);
-        double py = points(p_idx,1);
-        double qx = points(q_idx,0);
-        double qy = points(q_idx,1);
-        double rx = points(r_idx,0);
-        double ry = points(r_idx,1);
-        double v1x = qx-px;
-        double v1y = qy-py;
-        double v2x = rx-px;
-        double v2y = ry-py;
-        areas(tri_idx) = std::abs((v1x*v2y-v1y*v2x)/2);
-    }
-}
-
-void CalculateTriCentroids(
-    Eigen::MatrixXd & centroids,
-    const Eigen::MatrixXd & tri,
-    const Eigen::MatrixXd & points
-)
-{
-    assert(tri.cols() == 4);
-    assert(points.cols() == 3);
-    centroids.resize(tri.rows(),3);
-    centroids.setZero();
-    for(int tri_idx = 0; tri_idx < tri.rows(); tri_idx++)
-    {
-        Eigen::VectorXd itri = tri.block(tri_idx,0,1,3).transpose();
-        Eigen::VectorXd tx(3),ty(3),tz(3);
-        tx << points(itri(0),0),points(itri(1),0),points(itri(2),0);
-        ty << points(itri(0),1),points(itri(1),1),points(itri(2),1);
-        tz << points(itri(0),2),points(itri(1),2),points(itri(2),2);
-        Eigen::VectorXd centroid(3);
-        centroid << tx.array().mean(),ty.array().mean(),tz.array().mean();
-        centroids.block(tri_idx,0,1,3) = centroid.transpose();
-    }
-}
-
-
-
-
-
 
 
 void BuildDataGreen(
