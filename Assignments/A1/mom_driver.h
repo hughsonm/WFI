@@ -1,6 +1,10 @@
 #ifndef MOM_DRIVER_H
 #define MOM_DRIVER_H
 
+#define EPSNAUGHT 8.8541848128E-12
+#define MUNAUGHT 1.25663706212E-6
+#define CNAUGHT 299792508.7882675
+
 enum AntennaStyle_t
 {
     LineSource,
@@ -16,6 +20,10 @@ public:
     void buildTriangulation(
         std::string filename,
         bool verbose=false
+    );
+    void buildDomainGreen(
+        Eigen::MatrixXcd G,
+        std::complex<double> k2_b
     );
     Eigen::MatrixXd points;
     Eigen::MatrixXd tri;
@@ -42,13 +50,18 @@ class Chamber
 private:
     double frequency;
     Eigen::MatrixXcd Ez_inc,Ez_tot,Ez_sct;
-    bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready;
+    bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready,G_b_domain_ready;
+    Eigen::MatrixXcd G_b_domain;
+    Eigen::MatrixXcd L_domain;
+    Eigen::MatrixXcd Chi;
+    Eigen::PartialPivLU<Eigen::MatrixXcd> LU_L;
+    void getEzInc(Eigen::MatrixXcd & Ezdest);
 public:
     Chamber(std::string meshfile);
     void addTarget(std::string targetfile);
     void setupAntennas(std::string antennafile);
     void setFrequency(double freq);
-    void getEzTot(Eigen::MatrixXcd & Ezdest);
+    void getDomainEzTot(Eigen::MatrixXcd & Ezdest);
     std::vector<Antenna> antennas;
     Mesh mesh;
     Eigen::VectorXcd eps_r;

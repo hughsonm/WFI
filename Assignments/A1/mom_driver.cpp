@@ -9,11 +9,6 @@
 #include <boost/math/special_functions/hankel.hpp>
 #include "mom_driver.h"
 
-#define EPSNAUGHT 8.8541848128E-12
-#define MUNAUGHT 1.25663706212E-6
-#define CNAUGHT 299792508.7882675
-
-
 // Antenna::Antenna(void)
 // {
 //     location << 0,0,0;
@@ -164,11 +159,70 @@ void Mesh::buildTriangulation(
     }
 }
 
+void Mesh::buildDomainGreen(
+    Eigen::MatrixXcd G,
+    std::complex<double> k2_b
+)
+{
+    int n_tri = areas.size();
+
+    G.resize(n_tri,n_tri);
+
+    std::complex<double> j(0,1);
+
+    double k_b = (std::sqrt(k2_b)).real();
+
+    for(int mm = 0; mm < n_tri; mm++)
+    {
+        for(int nn = mm; nn < n_tri; nn++)
+        {
+            //std::cerr << mm << " " << nn;
+            Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
+            dxyz = dxyz.array().pow(2);
+            double dmn = std::sqrt(dxyz.array().sum());
+
+            std::complex<double> Gmn;
+            double a_n = std::sqrt(areas[nn]/M_PI);
+            //std::cerr << "dmn = " << dmn << ", a_n = " << a_n << ",";
+            if(mm==nn)
+            {
+                //std::cerr << " " << k_b*a_n;
+                std::complex<double> H12 = boost::math::cyl_hankel_2(
+                    1,
+                    k_b*a_n
+                );
+                Gmn = -j/(2.0*k_b*k_b)*(M_PI*k_b*a_n*H12 - 2.0*j);
+            }
+            else
+            {
+                //std::cerr << " " << k_b*a_n;
+                std::complex<double> J1 = boost::math::cyl_bessel_j(
+                    1,
+                    k_b*a_n
+                );
+                //std::cerr << " " << k_b*dmn;
+                std::complex<double> H02 = boost::math::cyl_hankel_2(
+                    0,
+                    k_b*dmn
+                );
+                // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
+                Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
+            }
+            //std::cerr << std::endl;
+            // Gmn *= -j/4.0;
+            G(mm,nn) = Gmn;
+            G(nn,mm) = Gmn;
+        }
+    }
+}
+
+
 Chamber::Chamber(std::string meshfile)
 {
     Ez_inc_ready = false;
     Ez_tot_ready = false;
     Ez_sct_ready = false;
+    G_b_domain_ready = false;
     mesh.buildTriangulation(meshfile);
 }
 
@@ -188,6 +242,7 @@ void Chamber::addTarget(std::string targetfile)
     double eps_rel_real,eps_rel_imag;
     std::complex<double> eps_rel_complex;
     eps_r.resize(mesh.tri.rows());
+    k2_f.resize(mesh.tri.rows());
     for(int rr = 0; rr < eps_r.size(); rr++)
     {
         eps_r(rr) = 1.0;
@@ -206,6 +261,7 @@ void Chamber::addTarget(std::string targetfile)
             if(mesh.tri(rr,3) == tag)
             {
                 eps_r(rr) = eps_rel_complex;
+                k2_f(rr) = k2_b*eps_r(rr);
             }
         }
     }
@@ -263,6 +319,10 @@ void Chamber::setupAntennas(std::string antennafile)
         antennas.push_back(iant);
     }
     reader.close();
+    Ez_inc_ready = false;
+    Ez_sct_ready = false;
+    Ez_tot_ready = false;
+    G_b_domain_ready = false;
 }
 
 void Chamber::setFrequency(double freq)
@@ -272,11 +332,78 @@ void Chamber::setFrequency(double freq)
     {
         antennas[aa].frequency = freq;
     }
+    double omega = 2*M_PI*freq;
+    k2_b = omega*omega/CNAUGHT/CNAUGHT;
+    k2_f.resize(eps_r.size());
+    for(int ee = 0; ee<eps_r.size(); ee++)
+    {
+        k2_f(ee) = k2_b*eps_r(ee);
+    }
+    Ez_inc_ready = false;
+    Ez_sct_ready = false;
+    Ez_tot_ready = false;
+    G_b_domain_ready = false;
 }
-void Chamber::getEzTot(Eigen::MatrixXcd & Ezdest)
+void Chamber::getDomainEzTot(Eigen::MatrixXcd & Ezdest)
 {
+    if(Ez_tot_ready)
+    {
+        Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
+        Ezdest = Ez_tot;
+    }
+    else if(Ez_inc_ready && Ez_sct_ready)
+    {
 
+        // build Ez_tot
+        Ez_tot = Ez_inc + Ez_sct;
+        Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
+        Ezdest = Ez_tot;
+        Ez_tot_ready = true;
+    }
+    else if(G_b_domain_ready)
+    {
+        // Get incident fields first.
+        Ez_tot.resize(mesh.areas.size(),antennas.size());
+        Ez_tot.setZero();
+        for(int jj = 0; jj < Ez_tot.cols(); jj++)
+        {
+            Ez_sct.col(jj) = LU_L.solve(
+                -G_b_domain*(
+                    Chi*Ez_inc.col(jj)
+                )
+            );
+        }
+        Ez_tot = Ez_inc + Ez_sct;
+        Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
+        Ezdest = Ez_tot;
+        Ez_tot_ready = true;
+        Ez_sct_ready = true;
+    }
+    else
+    {
+        //Gotta rebuild everything.
+        mesh.buildDomainGreen(
+            G_b_domain,
+            k2_b
+        );
+        Chi.resize(k2_f.size(),k2_f.size());
+        Chi.setZero();
+        for(int dd = 0; dd < Chi.cols();dd++)
+        {
+            Chi(dd,dd) = k2_f(dd)-k2_b;
+        }
+        L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
+        L_domain = G_b_domain;
+        for(int cc = 0; cc< Chi.cols(); cc++)
+        {
+            L_domain.col(cc) *= Chi(cc);
+            L_domain(cc,cc) += 1.0;
+        }
+        Ez_sct.resize(Ez_inc.rows(),Ez_inc.cols());
+    }
 }
+
+
 
 
 void WriteMatrixToFile(
@@ -636,64 +763,7 @@ void CalculateTriCentroids(
 
 
 
-void BuildDomainGreen(
-    Eigen::MatrixXcd & G,
-    const Eigen::MatrixXd & centroids,
-    const Eigen::VectorXd & areas,
-    double k2_b
-)
-{
-    int n_tri = areas.size();
 
-    G.resize(n_tri,n_tri);
-
-    std::complex<double> j(0,1);
-
-    double k_b = std::sqrt(k2_b);
-
-    for(int mm = 0; mm < n_tri; mm++)
-    {
-        for(int nn = mm; nn < n_tri; nn++)
-        {
-            //std::cerr << mm << " " << nn;
-            Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
-            dxyz = dxyz.array().pow(2);
-            double dmn = std::sqrt(dxyz.array().sum());
-
-            std::complex<double> Gmn;
-            double a_n = std::sqrt(areas[nn]/M_PI);
-            //std::cerr << "dmn = " << dmn << ", a_n = " << a_n << ",";
-            if(mm==nn)
-            {
-                //std::cerr << " " << k_b*a_n;
-                std::complex<double> H12 = boost::math::cyl_hankel_2(
-                    1,
-                    k_b*a_n
-                );
-                Gmn = -j/(2.0*k_b*k_b)*(M_PI*k_b*a_n*H12 - 2.0*j);
-            }
-            else
-            {
-                //std::cerr << " " << k_b*a_n;
-                std::complex<double> J1 = boost::math::cyl_bessel_j(
-                    1,
-                    k_b*a_n
-                );
-                //std::cerr << " " << k_b*dmn;
-                std::complex<double> H02 = boost::math::cyl_hankel_2(
-                    0,
-                    k_b*dmn
-                );
-                // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
-                Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
-            }
-            //std::cerr << std::endl;
-            // Gmn *= -j/4.0;
-            G(mm,nn) = Gmn;
-            G(nn,mm) = Gmn;
-        }
-    }
-}
 
 void BuildDataGreen(
     Eigen::MatrixXcd & G,

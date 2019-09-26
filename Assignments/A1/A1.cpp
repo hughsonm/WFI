@@ -23,7 +23,7 @@ int main (int argc, char **argv)
     img_chamber.setupAntennas(argv[3]);
     img_chamber.setFrequency(std::atof(argv[4]));
     Eigen::MatrixXcd Eztot;
-    img_chamber.getEzTot(Eztot);
+    img_chamber.getDomainEzTot(Eztot);
 
 
     // assert(argc==4);
