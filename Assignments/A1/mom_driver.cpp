@@ -52,7 +52,6 @@ void Antenna::getField(
                 double phase = points.row(ipt)*direction;
                 Ez(ipt) = std::exp(j_imag*phase);
             }
-
             break;
         }
         case Patch:
@@ -452,7 +451,21 @@ void Chamber::getDomainEzTot(Eigen::MatrixXcd & Ezdest)
         {
 
             std::cerr << "need to calculate incident fields" << std::endl;
-
+            Ez_inc.resize(mesh.areas.size(),antennas.size());
+            std::cerr << mesh.areas.size();
+            std::cerr << "," << mesh.points.rows() << std::endl;
+            for(int aa = 0; aa < antennas.size(); aa++)
+            {
+                Eigen::VectorXcd Ez_inc_a;
+                antennas[aa].getField(
+                    Ez_inc_a,
+                    mesh.centroids
+                );
+                std::cerr << Ez_inc.col(aa).size() << std::endl;
+                std::cerr << Ez_inc_a.size() << std::endl;
+                std::cerr << aa << std::endl;
+                Ez_inc.col(aa) = Ez_inc_a;
+            }
             std::cerr << "Building domain green..." << std::endl;
             mesh.buildDomainGreen(
                 G_b_domain,
@@ -493,22 +506,11 @@ void Chamber::getDomainEzTot(Eigen::MatrixXcd & Ezdest)
             std::cerr << "it worked!!" << std::endl;
             for(int jj = 0; jj < Ez_tot.cols(); jj++)
             {
-                std::cerr << "make chiez,";
-                std::cerr << Chi.rows() << std::endl;
-                std::cerr << Chi.cols() << std::endl;
-                std::cerr << Ez_inc.col(jj).size() << std::endl;
-                Eigen::VectorXcd chiez = Chi*Ez_inc.col(jj);
-                std::cerr << "G_b,";
-                chiez = -G_b_domain*chiez;
-                std::cerr << "solve,";
-                chiez = LU_L.solve(chiez);
-                std::cerr << "put back" << std::endl;
-                Ez_sct.col(jj) = chiez;
-                // Ez_sct.col(jj) = LU_L.solve(
-                //     -G_b_domain*(
-                //         Chi*Ez_inc.col(jj)
-                //     )
-                // );
+                Ez_sct.col(jj) = LU_L.solve(
+                    -G_b_domain*(
+                        Chi*Ez_inc.col(jj)
+                    )
+                );
             }
             Ez_tot = Ez_inc + Ez_sct;
             Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
