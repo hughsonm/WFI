@@ -645,66 +645,6 @@ void WriteVectorToFile(
     writer.close();
 }
 
-void ReadAntennaFile(
-    Eigen::MatrixXd & locations,
-    Eigen::VectorXcd &  coefficients,
-    const std::string filename
-)
-{
-    std::ifstream reader;
-    reader.open(filename,std::ifstream::in);
-    std::vector<Eigen::VectorXd> position_vec;
-    std::vector<std::complex<double> > coeff_vec;
-    std::string dummy_line;
-    // Demand that we have X Y Z Magnitude Phase
-    reader >> dummy_line;
-    assert(dummy_line.compare("x") == 0);
-    reader >> dummy_line;
-    assert(dummy_line.compare("y") == 0);
-    reader >> dummy_line;
-    assert(dummy_line.compare("z") == 0);
-    reader >> dummy_line;
-    assert(dummy_line.compare("magnitude") == 0);
-    reader >> dummy_line;
-    assert(dummy_line.compare("phase") == 0);
-    int itx = 0;
-    while(reader)
-    {
-        Eigen::VectorXd position(3);
-        double tx,ty,tz;
-
-        reader >> tx;
-
-        if(reader.eof()) break;
-
-        reader >> ty;
-        reader >> tz;
-
-        position << tx,ty,tz;
-        position_vec.push_back(position);
-        double mag,phase;
-        reader >> mag;
-        reader >> phase;
-        coeff_vec.push_back(std::polar(mag,phase));
-        itx++;
-    }
-
-    int ntx = itx;
-    locations.resize(ntx,3);
-    coefficients.resize(ntx);
-
-    for (int irow = 0; irow < ntx; irow++)
-    {
-        Eigen::MatrixXd loc_row(1,3);
-        loc_row << position_vec[irow][0],position_vec[irow][1],position_vec[irow][2];
-        locations.block(irow,0,1,3) = loc_row;
-        coefficients(irow) = coeff_vec[irow];
-    }
-
-    reader.close();
-}
-
-
 void BuildDataGreen(
     Eigen::MatrixXcd & G,
     const Eigen::MatrixXd & centroids,
