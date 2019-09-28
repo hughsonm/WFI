@@ -18,9 +18,9 @@ install: skip
 script:
   - cd Assignments/A1
   - make
-  - gmsh -2 -clscale 1.0 -o TestMesh.msh TestMesh.geo
+  - gmsh -2 -clscale 1.0 -o Ring.msh Ring.geo
   - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 3e9
-  - gmsh -2 -clscale 0.3 -o TestMesh.msh TestMesh.geo
+  - gmsh -2 -clscale 0.3 -o Ring.msh Ring.geo
   - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 3e9
-  - gmsh -2 -clscale 0.1 -o TestMesh.msh TestMesh.geo
+  - gmsh -2 -clscale 0.1 -o Ring.msh Ring.geo
   - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 3e9
