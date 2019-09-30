@@ -247,25 +247,18 @@ void Mesh::buildDataGreen(
 )
 {
     // For now, assume we go from all transmitters to all receivers
-    std::cerr << "Resizing data green to " << locations.rows() << " by " << areas.size() << std::endl;
     G.resize(locations.rows(),areas.size());
-    std::cerr << "success!" << std::endl;
 
     double k_b = std::sqrt(k2_b).real();
     std::complex<double> j_imag(0,1);
 
     for(int ll = 0; ll < locations.rows(); ll++)
     {
-        std::cerr << "Calculating data green row for receiver at position:" << std::endl;
-        std::cerr << locations.row(ll) << std::endl;
         for(int aa = 0; aa < areas.size(); aa++)
         {
-            std::cerr << "element positon: " << std::endl;
-            std::cerr << centroids.row(aa) << std::endl;
             Eigen::VectorXd diff = locations.row(ll) - centroids.row(aa);
             double distance = std::sqrt((diff.transpose())*diff);
             double radius = std::sqrt(areas[aa]/M_PI);
-            std::cerr << "distance = " << distance << ", radius = " << radius << std::endl;
             std::complex<double> J1 = boost::math::cyl_bessel_j(
                 1,
                 k_b*radius
@@ -603,8 +596,6 @@ void Chamber::calcDomainEzTot(void)
 
 void Chamber::calcDataEzTot(void)
 {
-    std::cerr << "Probe points are..." << std::endl;
-    std::cerr << probe_points << std::endl;
     if(!Ez_tot_ready)
     {
         std::cerr << "Ez_tot was not built. Getting it now." << std::endl;
@@ -627,24 +618,21 @@ void Chamber::calcDataEzTot(void)
 
     for(int aa = 0; aa < antennas.size(); aa++)
     {
-        std::cerr << "Calculating d-inc for antenna " << aa;
+        std::cerr << "Calculating d-inc for antenna " << aa << std::endl;
         Eigen::VectorXcd Ez_inc_a;
         antennas[aa].getField(
             Ez_inc_a,
             probe_points
         );
         Ez_inc_d.col(aa) = Ez_inc_a;
-        std::cerr << " done " << std::endl;
     }
     for(int tt = 0; tt < Ez_tot.cols(); tt++)
     {
-        std::cerr << "Calculating d-sct for antenna " << tt;
+        std::cerr << "Calculating d-sct for antenna " << tt << std::endl;
         Ez_sct_d.col(tt) = G_b_data*(Chi*(Ez_tot.col(tt)));
-        std::cerr << "done." << std::endl;
 
     }
     Ez_tot_d = Ez_inc_d + Ez_sct_d;
-
 }
 
 

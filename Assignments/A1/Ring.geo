@@ -1,7 +1,11 @@
+ff = 1e9;
+cc = 2.9979e8;
+lambda = cc/ff;
+
 cl = 10e-2;
 bd_rad = 20e-2;
-ring_rad = 10e-2;
-ring_width = 2e-2;
+ring_rad =   0.275*lambda;
+ring_width = 0.05*lambda;
 
 BKG_TAG = 1000;
 RING_TAG = 1001;

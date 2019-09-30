@@ -3,15 +3,12 @@ compiler: clang++
 os: osx
 
 before_install:
-  - brew update
   - brew install gmsh
   - brew install eigen
   - brew upgrade boost
-  - ls /usr/include
-  - ls /usr/lib
-  - ls /usr/local/include
-  - ls /usr/local/lib
-  - gmsh -version
+  - brew upgrade gmsh
+  - brew upgrade eigen
+  - brew upgrade boost
 
 install: skip
 
