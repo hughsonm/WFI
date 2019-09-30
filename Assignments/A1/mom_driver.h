@@ -28,6 +28,11 @@ public:
         Eigen::MatrixXcd & G,
         std::complex<double> k2_b
     );
+    void buildDataGreen(
+        Eigen::MatrixXcd & G,
+        std::complex<double> k2_b,
+        const Eigen::MatrixXd & locations
+    );
     Eigen::MatrixXd points;
     Eigen::MatrixXd tri;
     Eigen::MatrixXd centroids;
@@ -52,24 +57,29 @@ class Chamber
 {
 private:
     double frequency;
-    Eigen::MatrixXcd Ez_inc,Ez_tot,Ez_sct;
-    bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready,G_b_domain_ready;
     Eigen::MatrixXcd G_b_domain;
+    Eigen::MatrixXcd G_b_data;
     Eigen::MatrixXcd L_domain;
     Eigen::MatrixXcd Chi;
     Eigen::PartialPivLU<Eigen::MatrixXcd> LU_L;
-    void getEzInc(Eigen::MatrixXcd & Ezdest);
 public:
     Chamber(std::string meshfile);
     void addTarget(std::string targetfile);
     void setupAntennas(std::string antennafile);
+    void setupProbes(std::string probefile);
     void setFrequency(double freq);
-    void getDomainEzTot(Eigen::MatrixXcd & Ezdest);
+    void calcDomainEzTot(void);
+    void calcDataEzTot(void);
     std::vector<Antenna> antennas;
+    Eigen::MatrixXd probe_points;
     Mesh mesh;
     Eigen::VectorXcd eps_r;
     Eigen::VectorXcd k2_f;
     std::complex<double> k2_b;
+    Eigen::MatrixXcd Ez_inc,Ez_tot,Ez_sct;
+    Eigen::MatrixXcd Ez_inc_d,Ez_tot_d,Ez_sct_d;
+    bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready;
+    bool G_b_domain_ready,G_b_data_ready;
 };
 
 void WriteMatrixToFile(

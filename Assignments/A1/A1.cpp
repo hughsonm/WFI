@@ -30,16 +30,58 @@ int main (int argc, char **argv)
     std::cerr << "img_chamber.setFrequency(std::atof(argv[4]));" << std::endl;
     img_chamber.setFrequency(std::atof(argv[4]));
 
-    std::cerr << "Eigen::MatrixXcd Eztot;" << std::endl;
-    Eigen::MatrixXcd Eztot;
+    img_chamber.setupProbes(argv[5]);
 
-    std::cerr << "img_chamber.getDomainEzTot(Eztot);" << std::endl;
-    img_chamber.getDomainEzTot(Eztot);
-	
+    std::cerr << "img_chamber.calcDomainEzTot(Eztot);" << std::endl;
+    img_chamber.calcDomainEzTot();
+
+    img_chamber.calcDataEzTot();
+
+    WriteMatrixToFile(
+        "Ez_inc.txt",
+        img_chamber.Ez_inc
+    );
+    WriteMatrixToFile(
+        "Ez_sct.txt",
+        img_chamber.Ez_sct
+    );
 	WriteMatrixToFile(
-		"Eztot.txt",
-		Eztot
+		"Ez_tot.txt",
+		img_chamber.Ez_tot
 	);
+
+    WriteMatrixToFile(
+        "Test_pts.txt",
+        img_chamber.mesh.points
+    );
+    WriteMatrixToFile(
+        "Test_tri.txt",
+        img_chamber.mesh.tri
+    );
+    WriteVectorToFile(
+        "k2_fgd.txt",
+        img_chamber.k2_f
+    );
+
+    WriteMatrixToFile(
+        "probe_xyz.txt",
+        img_chamber.probe_points
+    );
+    
+    WriteMatrixToFile(
+        "Ez_inc_d.txt",
+        img_chamber.Ez_inc_d
+    );
+
+    WriteMatrixToFile(
+        "Ez_sct_d.txt",
+        img_chamber.Ez_sct_d
+    );
+
+    WriteMatrixToFile(
+        "Ez_tot_d.txt",
+        img_chamber.Ez_tot_d
+    );
 
     std::cerr << "\nFinalizing gmsh...";
     gmsh::finalize();
