@@ -3,11 +3,9 @@ compiler: clang++
 os: osx
 
 before_install:
+  - brew update
   - brew install gmsh
   - brew install eigen
-  - brew upgrade boost
-  - brew upgrade gmsh
-  - brew upgrade eigen
   - brew upgrade boost
 
 install: skip

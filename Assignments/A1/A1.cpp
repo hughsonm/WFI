@@ -59,6 +59,15 @@ int main (int argc, char **argv)
         img_chamber.mesh.tri
     );
     WriteVectorToFile(
+        "tri_areas.txt",
+        img_chamber.mesh.areas
+    );
+    WriteMatrixToFile(
+        "tri_centroids.txt",
+        img_chamber.mesh.centroids
+    );
+
+    WriteVectorToFile(
         "k2_fgd.txt",
         img_chamber.k2_f
     );
@@ -67,7 +76,7 @@ int main (int argc, char **argv)
         "probe_xyz.txt",
         img_chamber.probe_points
     );
-    
+
     WriteMatrixToFile(
         "Ez_inc_d.txt",
         img_chamber.Ez_inc_d

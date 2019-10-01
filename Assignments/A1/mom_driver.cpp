@@ -258,7 +258,7 @@ void Mesh::buildDataGreen(
         {
             Eigen::VectorXd diff = locations.row(ll) - centroids.row(aa);
             double distance = std::sqrt((diff.transpose())*diff);
-            double radius = std::sqrt(areas[aa]/M_PI);
+            double radius = std::sqrt(areas(aa)/M_PI);
             std::complex<double> J1 = boost::math::cyl_bessel_j(
                 1,
                 k_b*radius
@@ -292,11 +292,10 @@ void Mesh::buildDomainGreen(
         {
             //std::cerr << mm << " " << nn;
             Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
-            dxyz = dxyz.array().pow(2);
-            double dmn = std::sqrt(dxyz.array().sum());
+            double dmn = std::sqrt(dxyz.transpose() * dxyz);
 
             std::complex<double> Gmn;
-            double a_n = std::sqrt(areas[nn]/M_PI);
+            double a_n = std::sqrt(areas(nn)/M_PI);
             //std::cerr << "dmn = " << dmn << ", a_n = " << a_n << ",";
             if(mm==nn)
             {
@@ -309,6 +308,7 @@ void Mesh::buildDomainGreen(
             }
             else
             {
+                assert(dmn > a_n);
                 //std::cerr << " " << k_b*a_n;
                 std::complex<double> J1 = boost::math::cyl_bessel_j(
                     1,
@@ -549,7 +549,7 @@ void Chamber::calcDomainEzTot(void)
             // Build domain L operator
             std::cerr << "Building L_domain" << std::endl;
             L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
-            L_domain = G_b_domain;
+            L_domain = -G_b_domain;
             for(int cc = 0; cc< Chi.cols(); cc++)
             {
                 L_domain.col(cc) *= Chi(cc,cc);
@@ -572,7 +572,7 @@ void Chamber::calcDomainEzTot(void)
             for(int jj = 0; jj < Ez_tot.cols(); jj++)
             {
                 Ez_sct.col(jj) = LU_L.solve(
-                    -G_b_domain*(
+                    G_b_domain*(
                         Chi*Ez_inc.col(jj)
                     )
                 );
@@ -767,7 +767,7 @@ void BuildDataGreen(
             Eigen::VectorXd dxyz = (rxlocations.row(rr)-centroids.row(ee)).transpose();
             dxyz = dxyz.array().pow(2);
             double d_re = std::sqrt(dxyz.array().sum());
-            double a_e = std::sqrt(areas[ee]/M_PI);
+            double a_e = std::sqrt(areas(ee)/M_PI);
 
             std::complex<double> J1 = boost::math::cyl_bessel_j(
                 1,
