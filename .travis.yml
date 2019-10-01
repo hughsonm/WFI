@@ -14,8 +14,8 @@ script:
   - cd Assignments/A1
   - make
   - gmsh -2 -clscale 1.0 -o Ring.msh Ring.geo
-  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 3e9
-  - gmsh -2 -clscale 0.3 -o Ring.msh Ring.geo
-  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 3e9
-  - gmsh -2 -clscale 0.1 -o Ring.msh Ring.geo
-  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 3e9
+  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
+  - gmsh -2 -clscale 0.5 -o Ring.msh Ring.geo
+  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
+  - gmsh -2 -clscale 0.2 -o Ring.msh Ring.geo
+  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
