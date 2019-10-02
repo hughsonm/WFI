@@ -2,7 +2,7 @@ ff = 1e9;
 cc = 2.9979e8;
 lambda = cc/ff;
 
-cl = lambda/30;
+cl = lambda/10;
 ring_inner =   0.25*lambda;
 ring_width = 0.05*lambda;
 

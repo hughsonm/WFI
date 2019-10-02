@@ -9,14 +9,6 @@
 #include <boost/math/special_functions/hankel.hpp>
 #include "mom_driver.h"
 
-// Antenna::Antenna(void)
-// {
-//     location << 0,0,0;
-//     direction << 0,0,0;
-//     coefficient = 1;
-//     frequency = 1;
-// }
-
 void Antenna::getField(
     Eigen::VectorXcd & Ez,
     const Eigen::MatrixXd & points
@@ -60,8 +52,6 @@ void Antenna::getField(
             assert(0==1);
         }
     }
-
-
 }
 
 void Mesh::buildTriangulation(
@@ -81,29 +71,21 @@ void Mesh::buildTriangulation(
         node_para_coord
     );
 
-    //std::cerr << "n_nodes = " << node_tags.size() << std::endl;
-    int max_tag = *(std::max_element(node_tags.begin(),node_tags.end()));
-    //std::cerr << "Max tag: " << max_tag << std::endl;
+    int max_tag = *(std::max_element(
+        node_tags.begin(),node_tags.end()
+    ));
     points.resize(max_tag+1,3);
     points.setZero();
-    //std::cerr << points << std::endl;
     for(int nn = 0; nn < node_tags.size(); nn++)
     {
         int n_tag = node_tags[nn];
-        //std::cerr << "Node with tag = " << n_tag << std::endl;
         Eigen::Vector3d point;
         point << node_coords[3*nn+0],node_coords[3*nn+1],node_coords[3*nn+2];
-        //std::cerr << point << std::endl;
         points.row(n_tag) = point.transpose();
-        //std::cerr << "assigned a row in points" << std::endl;
-
     }
 
-
-    // Now try going physical group based
     gmsh::vectorpair physdimtags;
     gmsh::model::getPhysicalGroups(physdimtags);
-    //std::cerr << "Phys Group Based..." << std::endl;
     for(int ii = 0; ii < physdimtags.size(); ii++)
     {
         int physdim = physdimtags[ii].first;
@@ -114,10 +96,8 @@ void Mesh::buildTriangulation(
             phystag,
             ent_tags
         );
-        //std::cerr << "\t" <<physdim << "," << phystag << std::endl;
         for(int jj = 0; jj < ent_tags.size(); jj++)
         {
-            //std::cerr << "\t\t" << ent_tags[jj] << std::endl;
             std::vector<int> types;
             std::vector<std::vector<std::size_t> > eletags;
             std::vector<std::vector<std::size_t> > nodetags;
@@ -143,29 +123,22 @@ void Mesh::buildTriangulation(
                     type_num_nodes,
                     type_node_coords
                 );
-                //std::cerr << "\t\t\tT=" << types[tt] << ":";
                 for(int ee = 0; ee < eletags[tt].size();ee++)
                 {
-                    //std::cerr << eletags[tt][ee] << "(";
                     Eigen::VectorXd element(type_num_nodes+1);
                     for(int nn = 0; nn < type_num_nodes; nn++)
                     {
                         element(nn) = nodetags[tt][ee*type_num_nodes+nn];
-                        //std::cerr << nodetags[tt][ee*type_num_nodes+nn] << ",";
                     }
-                    //std::cerr << "),";
                     element(type_num_nodes) = phystag;
                     v_tri.push_back(element);
-
                 }
-                //std::cerr << std::endl;
             }
         }
     }
     int n_2d_eles = 0;
     for(int ii = 0; ii < v_tri.size(); ii++)
     {
-        //std::cerr << v_tri[ii] << std::endl;
         if(v_tri[ii].size() == 4)
         {
             n_2d_eles++;
@@ -175,11 +148,9 @@ void Mesh::buildTriangulation(
     int tri_ptr = 0;
     for(int ii = 0; ii < v_tri.size(); ii++)
     {
-        //std::cerr << v_tri[ii] << std::endl;
         if(v_tri[ii].size() == 4)
         {
             tri.row(tri_ptr++) = v_tri[ii].transpose();
-            //std::cerr << "\t" << tri.row(tri_ptr-1);
         }
     }
     std::cerr << "Built triangulation. Found ";
@@ -246,7 +217,6 @@ void Mesh::buildDataGreen(
     const Eigen::MatrixXd & locations
 )
 {
-    // For now, assume we go from all transmitters to all receivers
     G.resize(locations.rows(),areas.size());
 
     double k_b = std::sqrt(k2_b).real();
@@ -263,12 +233,10 @@ void Mesh::buildDataGreen(
                 1,
                 k_b*radius
             );
-            //std::cerr << " " << k_b*dmn;
             std::complex<double> H02 = boost::math::cyl_hankel_2(
                 0,
                 k_b*distance
             );
-            // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
             G(ll,aa) = -j_imag*M_PI*radius*J1*H02/2.0/k_b;
         }
     }
@@ -290,16 +258,13 @@ void Mesh::buildDomainGreen(
     {
         for(int nn = mm; nn < n_tri; nn++)
         {
-            //std::cerr << mm << " " << nn;
             Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
             double dmn = std::sqrt(dxyz.transpose() * dxyz);
 
             std::complex<double> Gmn;
             double a_n = std::sqrt(areas(nn)/M_PI);
-            //std::cerr << "dmn = " << dmn << ", a_n = " << a_n << ",";
             if(mm==nn)
             {
-                //std::cerr << " " << k_b*a_n;
                 std::complex<double> H12 = boost::math::cyl_hankel_2(
                     1,
                     k_b*a_n
@@ -309,21 +274,19 @@ void Mesh::buildDomainGreen(
             else
             {
                 assert(dmn > a_n);
-                //std::cerr << " " << k_b*a_n;
+                // In order to apply integral rule, the distance must
+                // be greater than the radius.
                 std::complex<double> J1 = boost::math::cyl_bessel_j(
                     1,
                     k_b*a_n
                 );
-                //std::cerr << " " << k_b*dmn;
                 std::complex<double> H02 = boost::math::cyl_hankel_2(
                     0,
                     k_b*dmn
                 );
-                // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
                 Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
             }
-            //std::cerr << std::endl;
-            // Gmn *= -j/4.0;
+            // Background green's function is symmetric
             G(mm,nn) = Gmn;
             G(nn,mm) = Gmn;
         }
@@ -340,7 +303,6 @@ Chamber::Chamber(std::string meshfile)
     G_b_data_ready = false;
     mesh.buildTriangulation(meshfile);
 }
-
 
 void Chamber::addTarget(std::string targetfile)
 {
@@ -453,7 +415,9 @@ void Chamber::setupAntennas(std::string antennafile)
         {
             iant.style = PlaneWave;
             iant.direction << x,y,z;
-            iant.direction /= std::sqrt((iant.direction.transpose()*iant.direction));
+            iant.direction /= std::sqrt(
+                (iant.direction.transpose()*iant.direction)
+            );
         }
         else if(sty_string.compare("linesource") == 0)
         {
@@ -493,6 +457,7 @@ void Chamber::setFrequency(double freq)
     Ez_tot_ready = false;
     G_b_domain_ready = false;
 }
+
 void Chamber::calcDomainEzTot(void)
 {
     int entry_point = 0;
@@ -535,7 +500,8 @@ void Chamber::calcDomainEzTot(void)
                 G_b_domain,
                 k2_b
             );
-            std::cerr << "G:(" << G_b_domain.rows() << "," << G_b_domain.cols() << ")" << std::endl;
+            std::cerr << "G:(" << G_b_domain.rows() << ",";
+            std::cerr << G_b_domain.cols() << ")" << std::endl;
             std::cerr << "Building Chi..." << std::endl;
 
             // Build contrast matrix
@@ -587,9 +553,7 @@ void Chamber::calcDomainEzTot(void)
         }
         case 3:
         {
-            // Write out the total fields
-            // Ezdest.resize(Ez_tot.rows(),Ez_tot.cols());
-            // Ezdest = Ez_tot;
+            // Don't actually need to do anything.
         }
     }
 }
@@ -598,12 +562,14 @@ void Chamber::calcDataEzTot(void)
 {
     if(!Ez_tot_ready)
     {
-        std::cerr << "Ez_tot was not built. Getting it now." << std::endl;
+        std::cerr << "Ez_tot was not built. Getting it now.";
+        std::cerr << std::endl;
         calcDomainEzTot();
     }
     if(!G_b_data_ready)
     {
-        std::cerr << "Data green was not built. Getting it now" << std::endl;
+        std::cerr << "Data green was not built. Getting it now";
+        std::cerr << std::endl;
         mesh.buildDataGreen(
             G_b_data,
             k2_b,
@@ -611,14 +577,18 @@ void Chamber::calcDataEzTot(void)
         );
         G_b_data_ready = true;
     }
-    std::cerr << "Resizing d-field holders to " << probe_points.rows() << " by " << antennas.size() << std::endl;
+    std::cerr << "Resizing d-field holders to ";
+    std::cerr << probe_points.rows() << " by ";
+    std::cerr << antennas.size() << std::endl;
+
     Ez_inc_d.resize(probe_points.rows(),antennas.size());
     Ez_sct_d.resize(probe_points.rows(),antennas.size());
     Ez_tot_d.resize(probe_points.rows(),antennas.size());
 
     for(int aa = 0; aa < antennas.size(); aa++)
     {
-        std::cerr << "Calculating d-inc for antenna " << aa << std::endl;
+        std::cerr << "Calculating d-inc for antenna ";
+        std::cerr << aa << std::endl;
         Eigen::VectorXcd Ez_inc_a;
         antennas[aa].getField(
             Ez_inc_a,
@@ -628,9 +598,9 @@ void Chamber::calcDataEzTot(void)
     }
     for(int tt = 0; tt < Ez_tot.cols(); tt++)
     {
-        std::cerr << "Calculating d-sct for antenna " << tt << std::endl;
+        std::cerr << "Calculating d-sct for antenna ";
+        std::cerr << tt << std::endl;
         Ez_sct_d.col(tt) = G_b_data*(Chi*(Ez_tot.col(tt)));
-
     }
     Ez_tot_d = Ez_inc_d + Ez_sct_d;
 }
@@ -661,7 +631,11 @@ void WriteMatrixToFile(
             std::string imag_prefix = "+";
             if(matrix(ii,jj).imag()<0) imag_prefix = "";
 
-            writer << matrix(ii,jj).real() << imag_prefix << matrix(ii,jj).imag() << "i" << sep;
+            writer << matrix(ii,jj).real();
+            writer << imag_prefix;
+            writer << matrix(ii,jj).imag();
+            sriter << "i";
+            writer << sep;
         }
         writer << std::endl;
     }
@@ -741,7 +715,10 @@ void WriteVectorToFile(
         std::string imag_prefix = "+";
         if(vec(ii).imag()<0) imag_prefix = "";
 
-        writer << vec(ii).real() << imag_prefix << vec(ii).imag() << "i" << std::endl;
+        writer << vec(ii).real();
+        writer << imag_prefix;
+        writer << vec(ii).imag();
+        writer << "i" << std::endl;
     }
     writer.close();
 }
@@ -764,7 +741,8 @@ void BuildDataGreen(
 
         for(int ee = 0; ee < n_ele; ee++)
         {
-            Eigen::VectorXd dxyz = (rxlocations.row(rr)-centroids.row(ee)).transpose();
+            Eigen::VectorXd dxyz;
+            dxyz = (rxlocations.row(rr)-centroids.row(ee)).transpose();
             dxyz = dxyz.array().pow(2);
             double d_re = std::sqrt(dxyz.array().sum());
             double a_e = std::sqrt(areas(ee)/M_PI);
@@ -773,12 +751,10 @@ void BuildDataGreen(
                 1,
                 k_b*a_e
             );
-            //std::cerr << " " << k_b*dmn;
             std::complex<double> H02 = boost::math::cyl_hankel_2(
                 0,
                 k_b*d_re
             );
-            // Gmn = j*M_PI*k_b*a_n*J1*H02/2.0;
             std::complex<double> G_re = -j*M_PI*a_e*J1*H02/2.0/k_b;
             G(rr,ee) = G_re;
         }
