@@ -6,6 +6,7 @@
 *.out
 *.o
 *.pdf
+*.png
 **/Notes
 *~
 *Test_pts*

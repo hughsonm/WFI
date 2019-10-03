@@ -1,6 +1,6 @@
 clearvars;
 
-ITX = 1;
+ITX = 2;
 FREQ = 1E9;
 CNAUGHT = 2.9979E8;
 K_B = (2*pi*FREQ)/CNAUGHT;
@@ -93,7 +93,7 @@ ss = plot(...
     t_theta(plot_start_idx:end),...
     abs(t_Ez_tot(plot_start_idx:end)),...
     'b*-');%,...
-    %'MarkerEdgeAlpha',0.7);
+%'MarkerEdgeAlpha',0.7);
 title('Electric Field Distribution Inside Shell');
 xlabel('Element Centroid Angular Position [deg]');
 ylabel('E_Z^T');
@@ -142,11 +142,66 @@ for ii = 1:size(tri,1)
     assert(norm(centroids(ii,1:3)-tc) < 1e-7);
 end
 
-fig_dest = "Report/figs";
-saveas(f_echo,fig_dest + "/Echo" + ITX + ".png");
-saveas(f_ez,fig_dest + "/EzInTarget" + ITX + ".png");
-saveas(f_mesh,fig_dest + "/Mesh" + ITX + ".png");
-saveas(f_probe,fig_dest + "/Probe" + ITX + ".png");
+
+
+fig_dest = 'Report/figs';
+if(ITX == 1)
+    f3 = imread('Fig3.png');
+    f4 = imread('Fig4.png');
+    
+    f_f3 = figure(5);
+    hold off;
+    % Flip the image upside down before showing it
+    imagesc([0 200], [0 1.6], flipdim(f3,1));
+    % NOTE: if your image is RGB, you should use flipdim(img, 1) instead of flipud.
+    hold on;
+    plot(...
+        t_theta(plot_start_idx:end),...
+        abs(t_Ez_tot(plot_start_idx:end)),...
+        'b:',...
+        'LineWidth',15);
+    % set the y-axis back to normal.
+    set(gca,'ydir','normal');
+    f_f4 = figure(6);
+    hold off;
+    imagesc([0 200], [0 4.8], flipdim(f4,1));
+    % NOTE: if your image is RGB, you should use flipdim(img, 1) instead of flipud.
+    hold on;
+    plot(phi*180/pi,echo_width/LAMBDA,...
+        'b:',...
+        'LineWidth',15);
+    % set the y-axis back to normal.
+    set(gca,'ydir','normal');
+    
+    saveas(f_f3,[fig_dest '/RichFig3.png']);
+    saveas(f_f4,[fig_dest '/RichFig4.png']);
+    
+else
+    f5 = imread('Fig5.png');
+    f_f5 = figure(7);
+    hold off;
+    imagesc([0 200], [0 5.6], flipdim(f5,1));
+    % NOTE: if your image is RGB, you should use flipdim(img, 1) instead of flipud.
+    hold on;
+    plot(phi*180/pi,echo_width/LAMBDA,...
+        'b:',...
+        'LineWidth',15);
+    % set the y-axis back to normal.
+    set(gca,'ydir','normal');
+    saveas(f_f5,[fig_dest '/RichFig5.png']);
+end
+
+
+saveas(f_echo,[fig_dest, '/Echo', num2str(ITX), '.png']);
+saveas(f_ez,[fig_dest, '/EzInTarget', num2str(ITX), '.png']);
+saveas(f_mesh,[fig_dest, '/Mesh', num2str(ITX), '.png']);
+saveas(f_probe,[fig_dest, '/Probe', num2str(ITX), '.png']);
+
+
+
+
+
+
 
 
 
