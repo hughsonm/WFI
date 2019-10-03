@@ -30,7 +30,7 @@ void Antenna::getField(
             }
             for(int ipt = 0; ipt < Ez.size(); ipt++)
             {
-                Ez(ipt) = boost::math::cyl_hankel_2(
+                Ez(ipt) = -j_imag/4.0*boost::math::cyl_hankel_2(
                     0,
                     k*distances(ipt)
                 );
@@ -396,7 +396,6 @@ void Chamber::setupAntennas(std::string antennafile)
     reader >> ins;
     assert(ins.compare("style") == 0);
     double x,y,z,mag,phs;
-    AntennaStyle_t sty;
     std::string sty_string;
     antennas.resize(0);
     Antenna iant;
@@ -634,7 +633,7 @@ void WriteMatrixToFile(
             writer << matrix(ii,jj).real();
             writer << imag_prefix;
             writer << matrix(ii,jj).imag();
-            sriter << "i";
+            writer << "i";
             writer << sep;
         }
         writer << std::endl;

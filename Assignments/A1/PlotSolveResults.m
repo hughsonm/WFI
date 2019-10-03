@@ -1,6 +1,6 @@
 clearvars;
 
-ITX = 2;
+ITX = 1;
 FREQ = 1E9;
 CNAUGHT = 2.9979E8;
 K_B = (2*pi*FREQ)/CNAUGHT;
@@ -101,7 +101,7 @@ ylabel('E_Z^T');
 
 Eimagsq = 1;
 if(ITX == 2)
-    Eimagsq = abs(besselh(0,2,pi))^2;
+    Eimagsq = abs((-1.0j/4)*besselh(0,2,pi))^2;
 end
 phi = linspace(0,pi,1000);
 echo_width = 0*phi;
