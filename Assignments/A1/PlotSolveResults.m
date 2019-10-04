@@ -1,29 +1,29 @@
 clearvars;
 
-ITX = 2;
+ITX = 1;
 FREQ = 1E9;
 CNAUGHT = 2.9979E8;
 K_B = (2*pi*FREQ)/CNAUGHT;
 
 LAMBDA = CNAUGHT/FREQ;
 
-tri = dlmread('Test_tri.txt');
-pts = dlmread('Test_pts.txt');
-centroids = dlmread('tri_centroids.txt');
-areas = dlmread('tri_areas.txt');
+tri =       ReadCppMatrixFromFile('tri_tri.txt');
+pts =       ReadCppMatrixFromFile('tri_pts.txt');
+centroids = ReadCppMatrixFromFile('tri_centroids.txt');
+areas =     ReadCppVectorFromFile('tri_areas.txt');
 eq_radii = sqrt(areas/pi);
 
-Ez_inc = dlmread('Ez_inc.txt');
-Ez_sct = dlmread('Ez_sct.txt');
-Ez_tot = dlmread('Ez_tot.txt');
+Ez_inc =    ReadCppMatrixFromFile('Ez_inc.txt');
+Ez_sct =    ReadCppMatrixFromFile('Ez_sct.txt');
+Ez_tot =    ReadCppMatrixFromFile('Ez_tot.txt');
 
-k2 = dlmread('k2_fgd.txt');
+k2 =        ReadCppVectorFromFile('k2_fgd.txt');
 eps_r = k2/(K_B)^2;
 
-probes = dlmread('probe_xyz.txt');
-Ez_inc_p = dlmread('Ez_inc_d.txt');
-Ez_sct_p = dlmread('Ez_sct_d.txt');
-Ez_tot_p = dlmread('Ez_tot_d.txt');
+probes =    ReadCppMatrixFromFile('probe_xyz.txt');
+Ez_inc_p =  ReadCppMatrixFromFile('Ez_inc_d.txt');
+Ez_sct_p =  ReadCppMatrixFromFile('Ez_sct_d.txt');
+Ez_tot_p =  ReadCppMatrixFromFile('Ez_tot_d.txt');
 
 
 tags = tri(:,end);
@@ -151,27 +151,27 @@ if(ITX == 1)
     
     f_f3 = figure(5);
     hold off;
-    % Flip the image upside down before showing it
-    imagesc([0 200], [0 1.6], flipdim(f3,1));
-    % NOTE: if your image is RGB, you should use flipdim(img, 1) instead of flipud.
+    imagesc([0 200], [0 1.6], flip(f3,1));
     hold on;
     plot(...
         t_theta(plot_start_idx:end),...
         abs(t_Ez_tot(plot_start_idx:end)),...
         'b:',...
         'LineWidth',15);
-    % set the y-axis back to normal.
     set(gca,'ydir','normal');
+    xlabel('\phi [deg]');
+    ylabel('|E_z| in Target');
+    
     f_f4 = figure(6);
     hold off;
-    imagesc([0 200], [0 4.8], flipdim(f4,1));
-    % NOTE: if your image is RGB, you should use flipdim(img, 1) instead of flipud.
+    imagesc([0 200], [0 4.8], flip(f4,1));
     hold on;
     plot(phi*180/pi,echo_width/LAMBDA,...
         'b:',...
         'LineWidth',15);
-    % set the y-axis back to normal.
     set(gca,'ydir','normal');
+    xlabel('\phi [deg]');
+    ylabel('Echo Width / \lambda');
     
     saveas(f_f3,[fig_dest '/RichFig3.png']);
     saveas(f_f4,[fig_dest '/RichFig4.png']);
@@ -180,14 +180,14 @@ else
     f5 = imread('Fig5.png');
     f_f5 = figure(7);
     hold off;
-    imagesc([0 200], [0 5.6], flipdim(f5,1));
-    % NOTE: if your image is RGB, you should use flipdim(img, 1) instead of flipud.
+    imagesc([0 200], [0 5.6], flip(f5,1));
     hold on;
     plot(phi*180/pi,echo_width/LAMBDA,...
         'b:',...
         'LineWidth',15);
-    % set the y-axis back to normal.
     set(gca,'ydir','normal');
+    xlabel('\phi [deg]');
+    ylabel('Echo Width / \lambda');
     saveas(f_f5,[fig_dest '/RichFig5.png']);
 end
 
@@ -196,15 +196,6 @@ saveas(f_echo,[fig_dest, '/Echo', num2str(ITX), '.png']);
 saveas(f_ez,[fig_dest, '/EzInTarget', num2str(ITX), '.png']);
 saveas(f_mesh,[fig_dest, '/Mesh', num2str(ITX), '.png']);
 saveas(f_probe,[fig_dest, '/Probe', num2str(ITX), '.png']);
-
-
-
-
-
-
-
-
-
 
 function tightenAxes()
 ax = gca;
@@ -216,6 +207,10 @@ ax_width = outerpos(3) - ti(1) - ti(3);
 ax_height = outerpos(4) - ti(2) - ti(4);
 ax.Position = [left bottom ax_width ax_height];
 end
+
+
+
+
 
 
 

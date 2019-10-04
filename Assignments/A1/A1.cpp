@@ -46,11 +46,11 @@ int main (int argc, char **argv)
 	);
 
     WriteMatrixToFile(
-        "Test_pts.txt",
+        "tri_pts.txt",
         img_chamber.mesh.points
     );
     WriteMatrixToFile(
-        "Test_tri.txt",
+        "tri_tri.txt",
         img_chamber.mesh.tri
     );
     WriteVectorToFile(

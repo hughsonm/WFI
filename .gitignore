@@ -8,8 +8,8 @@
 *.pdf
 **/Notes
 *~
-*Test_pts*
-*Test_tri*
+*tri_pts*
+*tri_tri*
 *Ez_inc.txt
 *Ez_sct.txt
 *Ez_tot.txt

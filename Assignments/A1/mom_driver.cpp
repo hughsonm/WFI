@@ -607,7 +607,7 @@ void Chamber::calcDataEzTot(void)
 
 void WriteMatrixToFile(
     std::string filename,
-    Eigen::MatrixXcd matrix,
+    const Eigen::MatrixXcd & matrix,
     bool append
 )
 {
@@ -620,31 +620,24 @@ void WriteMatrixToFile(
     {
         writer.open(filename,std::ofstream::out);
     }
+    writer << matrix.rows() << "\t" << matrix.cols() << std::endl;
     for(int ii = 0; ii < matrix.rows(); ii++)
     {
         int n_cols= matrix.cols();
         for(int jj = 0; jj <n_cols; jj++)
         {
-            std::string sep = ",";
+            std::string sep = "\t";
             if (jj == (n_cols-1)) sep = "";
-            std::string imag_prefix = "+";
-            if(matrix(ii,jj).imag()<0) imag_prefix = "";
-
-            writer << matrix(ii,jj).real();
-            writer << imag_prefix;
-            writer << matrix(ii,jj).imag();
-            writer << "i";
-            writer << sep;
+            writer << matrix(ii,jj) << sep;
         }
         writer << std::endl;
     }
-
     writer.close();
 }
 
 void WriteMatrixToFile(
     std::string filename,
-    Eigen::MatrixXd matrix,
+    const Eigen::MatrixXd & matrix,
     bool append
 )
 {
@@ -657,14 +650,14 @@ void WriteMatrixToFile(
     {
         writer.open(filename,std::ofstream::out);
     }
+    writer << matrix.rows() << "\t" << matrix.cols() << std::endl;
     for(int ii = 0; ii < matrix.rows(); ii++)
     {
         int n_cols= matrix.cols();
         for(int jj = 0; jj <n_cols; jj++)
         {
-            std::string sep = ",";
+            std::string sep = "\t";
             if (jj == (n_cols-1)) sep = "";
-
             writer << matrix(ii,jj) << sep;
         }
         writer << std::endl;
@@ -674,7 +667,7 @@ void WriteMatrixToFile(
 
 void WriteVectorToFile(
     std::string filename,
-    Eigen::VectorXd vec,
+    const Eigen::VectorXd & vec,
     bool append
 )
 {
@@ -687,6 +680,7 @@ void WriteVectorToFile(
     {
         writer.open(filename,std::ofstream::out);
     }
+    writer << vec.size() << std::endl;
     for(int ii = 0; ii < vec.size(); ii++)
     {
         writer << vec(ii) << std::endl;
@@ -696,7 +690,7 @@ void WriteVectorToFile(
 
 void WriteVectorToFile(
     std::string filename,
-    Eigen::VectorXcd vec,
+    const Eigen::VectorXcd & vec,
     bool append
 )
 {
@@ -709,15 +703,10 @@ void WriteVectorToFile(
     {
         writer.open(filename,std::ofstream::out);
     }
+    writer << vec.size() << std::endl;
     for(int ii = 0; ii < vec.size(); ii++)
     {
-        std::string imag_prefix = "+";
-        if(vec(ii).imag()<0) imag_prefix = "";
-
-        writer << vec(ii).real();
-        writer << imag_prefix;
-        writer << vec(ii).imag();
-        writer << "i" << std::endl;
+        writer << vec(ii) << std::endl;
     }
     writer.close();
 }
@@ -758,4 +747,81 @@ void BuildDataGreen(
             G(rr,ee) = G_re;
         }
     }
+}
+
+void ReadVectorFromFile(
+    std::string filename,
+    Eigen::VectorXd & vec
+)
+{
+    std::ifstream reader;
+    reader.open(filename, std::ifstream::in);
+    int nrows;
+    reader >> nrows;
+    vec.resize(nrows);
+    for(int ii = 0; ii < nrows; ii++)
+    {
+        reader >> vec(ii);
+    }
+    reader.close();
+}
+
+
+void ReadVectorFromFile(
+    std::string filename,
+    Eigen::VectorXcd & vec
+)
+{
+    std::ifstream reader;
+    reader.open(filename, std::ifstream::in);
+    int nrows;
+    reader >> nrows;
+    vec.resize(nrows);
+    for(int ii = 0; ii < nrows; ii++)
+    {
+        reader >> vec(ii);
+    }
+    reader.close();
+}
+
+void ReadMatrixFromFile(
+    std::string filename,
+    Eigen::VectorXd & matrix
+)
+{
+    std::ifstream reader;
+    reader.open(filename,std::ifstream::in);
+    int nrows,ncols;
+    reader >> nrows;
+    reader >> ncols;
+    matrix.resize(nrows,ncols);
+    for(int mm = 0; mm < nrows;++mm)
+    {
+        for(int nn = 0; nn < ncols; ++nn)
+        {
+            reader >> matrix(mm,nn);
+        }
+    }
+    reader.close();
+}
+
+void ReadMatrixFromFile(
+    std::string filename,
+    Eigen::VectorXcd & matrix
+)
+{
+    std::ifstream reader;
+    reader.open(filename,std::ifstream::in);
+    int nrows,ncols;
+    reader >> nrows;
+    reader >> ncols;
+    matrix.resize(nrows,ncols);
+    for(int mm = 0; mm < nrows;++mm)
+    {
+        for(int nn = 0; nn < ncols; ++nn)
+        {
+            reader >> matrix(mm,nn);
+        }
+    }
+    reader.close();
 }

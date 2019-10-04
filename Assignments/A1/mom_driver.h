@@ -84,28 +84,48 @@ public:
 
 void WriteMatrixToFile(
     std::string filename,
-    Eigen::MatrixXcd matrix,
+    const Eigen::MatrixXcd & matrix,
     bool append=false
 );
 
 void WriteMatrixToFile(
     std::string filename,
-    Eigen::MatrixXd matrix,
+    const Eigen::MatrixXd & matrix,
     bool append=false
 );
 
 
 void WriteVectorToFile(
     std::string filename,
-    Eigen::VectorXd vec,
+    const Eigen::VectorXd & vec,
     bool append=false
 );
 
 
 void WriteVectorToFile(
     std::string filename,
-    Eigen::VectorXcd vec,
+    const Eigen::VectorXcd & vec,
     bool append=false
+);
+
+void ReadMatrixFromFile(
+    std::string filename,
+    Eigen::VectorXcd & matrix
+);
+
+void ReadMatrixFromFile(
+    std::string filename,
+    Eigen::VectorXd & matrix
+);
+
+void ReadVectorFromFile(
+    std::string filename,
+    Eigen::VectorXcd & vec
+);
+
+void ReadVectorFromFile(
+    std::string filename,
+    Eigen::VectorXd & vec
 );
 
 
