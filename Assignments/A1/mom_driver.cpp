@@ -302,6 +302,10 @@ Chamber::Chamber(std::string meshfile)
     G_b_domain_ready = false;
     G_b_data_ready = false;
     mesh.buildTriangulation(meshfile);
+    eps_r.resize(mesh.areas.size());
+    for(int rr = 0; rr<eps_r.size();++rr) eps_r(rr) = 1.0;
+    k2_b = 0;
+    k2_f = eps_r*0;
 }
 
 void Chamber::addTarget(std::string targetfile)

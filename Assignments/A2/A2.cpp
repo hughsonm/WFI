@@ -22,43 +22,17 @@ bool char_is_plusminus(char c)
 
 int main(int argc, char** argv)
 {
-    //gmsh::initialize();
+    gmsh::initialize();
+    assert(argc == 5);
+    std::string mesh_filename(argv[1]);
+    std::string antennas_filename(argv[2]);
+    double frequency = std::stod(argv[3]);
+    std::string probes_filename(argv[4]);
 
-    std::ofstream writer;
-    writer.open("myfile.txt", std::ofstream::out);
-    for(int ll = 0; ll < 100; ll++)
-    {
-        for(int nn = 0; nn < 13; nn++)
-        {
-            std::complex<double> dd(
-                ((double)std::rand())/RAND_MAX-0.5,
-                ((double)std::rand())/RAND_MAX-0.5
-            );
-            writer << dd << "\t";
-        }
-        std::complex<double> dd(
-            ((double)std::rand())/RAND_MAX-0.5,
-            ((double)std::rand())/RAND_MAX-0.5
-        );
-        writer << dd << std::endl;
-    }
-    writer.close();
-
-    std::ifstream reader;
-    reader.open("myfile.txt", std::ifstream::in);
-    while (!reader.eof())
-    {
-        std::complex<double> id;
-        reader >> id;
-        std::cout << id << std::endl;
-    }
-
-
-    /*Chamber img_chamber(argv[1]);
-    img_chamber.setupAntennas(argv[3]);
-    img_chamber.setFrequency(std::atof(argv[4]));
-    img_chamber.setupProbes(argv[5]);*/
-    reader.close();
-    //gmsh::finalize();
+    Chamber img_chamber(mesh_filename);
+    img_chamber.setupAntennas(antennas_filename);
+    img_chamber.setFrequency(frequency);
+    img_chamber.setupProbes(probes_filename);
+    gmsh::finalize();
     return(0);
 }
