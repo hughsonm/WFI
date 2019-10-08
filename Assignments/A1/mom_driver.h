@@ -55,13 +55,6 @@ public:
 
 class Chamber
 {
-private:
-    double frequency;
-    Eigen::MatrixXcd G_b_domain;
-    Eigen::MatrixXcd G_b_data;
-    Eigen::MatrixXcd L_domain;
-    Eigen::MatrixXcd Chi;
-    Eigen::PartialPivLU<Eigen::MatrixXcd> LU_L;
 public:
     Chamber(std::string meshfile);
     void addTarget(std::string targetfile);
@@ -70,6 +63,16 @@ public:
     void setFrequency(double freq);
     void calcDomainEzTot(void);
     void calcDataEzTot(void);
+    void buildDataGreen(void);
+    void buildAnnihilator(void);
+    void readMeasuredData(std::string datafile);
+    double frequency;
+    Eigen::MatrixXcd G_b_domain;
+    Eigen::MatrixXcd G_b_data;
+    // L = (I+G*Chi);
+    Eigen::MatrixXcd L_domain;
+    Eigen::MatrixXcd Chi;
+    Eigen::PartialPivLU<Eigen::MatrixXcd> LU_L;
     std::vector<Antenna> antennas;
     Eigen::MatrixXd probe_points;
     Mesh mesh;
@@ -78,6 +81,7 @@ public:
     std::complex<double> k2_b;
     Eigen::MatrixXcd Ez_inc,Ez_tot,Ez_sct;
     Eigen::MatrixXcd Ez_inc_d,Ez_tot_d,Ez_sct_d;
+    Eigen::MatrixXcd Ez_tot_meas;
     bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready;
     bool G_b_domain_ready,G_b_data_ready;
 };
@@ -110,12 +114,12 @@ void WriteVectorToFile(
 
 void ReadMatrixFromFile(
     std::string filename,
-    Eigen::VectorXcd & matrix
+    Eigen::MatrixXcd & matrix
 );
 
 void ReadMatrixFromFile(
     std::string filename,
-    Eigen::VectorXd & matrix
+    Eigen::MatrixXd & matrix
 );
 
 void ReadVectorFromFile(
@@ -128,55 +132,4 @@ void ReadVectorFromFile(
     Eigen::VectorXd & vec
 );
 
-
-void ReadAntennaFile(
-    Eigen::MatrixXd & locations,
-    Eigen::VectorXcd &  coefficients,
-    const std::string filename
-);
-
-
-void BuildTriangulation(
-    std::string filename,
-    Eigen::MatrixXd & tri,
-    Eigen::MatrixXd & points,
-    bool verbose = false
-);
-
-
-void CalculateTriAreas(
-    Eigen::VectorXd & areas,
-    const Eigen::MatrixXd & tri,
-    const Eigen::MatrixXd & points,
-    bool verbose = false
-);
-
-void CalculateTriCentroids(
-    Eigen::MatrixXd & centroids,
-    const Eigen::MatrixXd & tri,
-    const Eigen::MatrixXd & points
-);
-
-
-
-void AssignRelativeConstitutives(
-    Eigen::VectorXcd & eps_r,
-    const Eigen::MatrixXd & tri,
-    const std::string constfilename
-);
-
-void BuildDomainGreen(
-    Eigen::MatrixXcd & G,
-    const Eigen::MatrixXd & centroids,
-    const Eigen::VectorXd & areas,
-    double k2_b
-);
-
-void BuildDataGreen(
-    Eigen::MatrixXcd & G,
-    const Eigen::MatrixXd & centroids,
-    const Eigen::VectorXd & areas,
-    const Eigen::MatrixXd & rxlocations,
-    double k2_b
-);
 #endif

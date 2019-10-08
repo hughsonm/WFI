@@ -305,7 +305,7 @@ Chamber::Chamber(std::string meshfile)
     eps_r.resize(mesh.areas.size());
     for(int rr = 0; rr<eps_r.size();++rr) eps_r(rr) = 1.0;
     k2_b = 0;
-    k2_f = eps_r*0;
+    k2_f = eps_r*k2_b;
 }
 
 void Chamber::addTarget(std::string targetfile)
@@ -380,6 +380,32 @@ void Chamber::setupProbes(std::string probefile)
     }
 
     reader.close();
+}
+
+void Chamber::readMeasuredData(std::string datafile)
+{
+    ReadMatrixFromFile(
+        datafile,
+        Ez_tot_meas
+    );
+}
+
+void Chamber::buildDataGreen(void)
+{
+    mesh.buildDataGreen(
+        G_b_data,
+        k2_b,
+        probe_points
+    );
+}
+
+void Chamber::buildAnnihilator(void)
+{
+    int ntx = antennas.size();
+    int nprobes = probe_points.rows();
+
+
+    // Loop over a bunch of lambdas.
 }
 
 void Chamber::setupAntennas(std::string antennafile)
@@ -609,6 +635,8 @@ void Chamber::calcDataEzTot(void)
 }
 
 
+
+
 void WriteMatrixToFile(
     std::string filename,
     const Eigen::MatrixXcd & matrix,
@@ -790,7 +818,7 @@ void ReadVectorFromFile(
 
 void ReadMatrixFromFile(
     std::string filename,
-    Eigen::VectorXd & matrix
+    Eigen::MatrixXd & matrix
 )
 {
     std::ifstream reader;
@@ -811,7 +839,7 @@ void ReadMatrixFromFile(
 
 void ReadMatrixFromFile(
     std::string filename,
-    Eigen::VectorXcd & matrix
+    Eigen::MatrixXcd & matrix
 )
 {
     std::ifstream reader;
@@ -819,13 +847,18 @@ void ReadMatrixFromFile(
     int nrows,ncols;
     reader >> nrows;
     reader >> ncols;
+    std::cerr << "Reading a file with " << nrows << " rows and " << ncols << " columns..." << std::endl;
     matrix.resize(nrows,ncols);
     for(int mm = 0; mm < nrows;++mm)
     {
+        std::cerr << "Reading row " << mm << std::endl;
         for(int nn = 0; nn < ncols; ++nn)
         {
+
             reader >> matrix(mm,nn);
+            std::cerr << matrix(mm,nn) << "\t";
         }
+        std::cerr << std::endl;
     }
     reader.close();
 }
