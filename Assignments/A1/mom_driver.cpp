@@ -402,10 +402,145 @@ void Chamber::buildDataGreen(void)
 void Chamber::buildAnnihilator(void)
 {
     int ntx = antennas.size();
-    int nprobes = probe_points.rows();
+    std::cerr << "Resizing Ez_sct_meas to " << Ez_tot_meas.rows() << " by " << Ez_tot_meas.cols() << std::endl;
+    Ez_sct_meas.resize(Ez_tot_meas.rows(),Ez_tot_meas.cols());
 
+    Ez_sct_meas = Ez_tot_meas - Ez_inc_d;
 
-    // Loop over a bunch of lambdas.
+    std::cerr << "Ez_sct_meas = " << std::endl;
+    std::cerr << Ez_sct_meas << std::endl;
+
+    Eigen::MatrixXcd PhP{G_b_data.adjoint()*G_b_data};
+    Eigen::MatrixXcd I{
+        Eigen::MatrixXcd::Identity(
+            PhP.rows(),PhP.cols()
+        )
+    };
+
+    std::cerr << "PhP is " << PhP.rows() << " by " << PhP.cols() << std::endl;
+
+    std::vector<bool> optimum_found_for_tx(ntx,false);
+    std::vector<std::vector<double> > tikh_distances_for_tx(ntx);
+    Eigen::MatrixXcd Phd_all{G_b_data.adjoint()*Ez_sct_meas};
+    std::vector<double> optimal_lambdas(ntx);
+    double lambda_exp{0.0};
+    while(
+        !std::all_of(
+            optimum_found_for_tx.begin(),
+            optimum_found_for_tx.end(),
+            [](bool x){return x;}
+        )
+    )
+    {
+        lambda_exp++;
+        std::cerr << "lambda_exp = " << lambda_exp << std::endl;
+
+        double lambda_big{std::pow(10,lambda_exp)};
+        double lambda_sml{std::pow(10,-lambda_exp)};
+
+        std::cerr << "big = " << lambda_big << " and small = " << lambda_sml << std::endl;
+
+        Eigen::MatrixXcd Abig=PhP+lambda_big*I;
+        Eigen::MatrixXcd Asml=PhP+lambda_sml*I;
+
+        std::cerr << "First elements of Abig, Asml:" << Abig(0,0) << "," << Asml(0,0) << std::endl;
+
+        Eigen::PartialPivLU<Eigen::MatrixXcd> LU_big;
+        Eigen::PartialPivLU<Eigen::MatrixXcd> LU_sml;
+
+        std::cerr << "Computing LU factorization of A-matrices...(" << Abig.rows() << "," << Abig.cols() << ")";
+
+        LU_big.compute(Abig);
+        std::cerr << " done 1...";
+        LU_sml.compute(Asml);
+        std::cerr << " done 2!" << std::endl;
+
+        for(int itx = 0; itx < ntx; itx++)
+        {
+
+            if(!optimum_found_for_tx[itx])
+            {
+                std::cerr << "\tSolving system for tx " << itx << std::endl;
+                // Solve system
+                Eigen::VectorXcd alpha_big{LU_big.solve(Phd_all.col(itx))};
+                Eigen::VectorXcd alpha_sml{LU_sml.solve(Phd_all.col(itx))};
+
+                double res_norm_big{(Ez_sct_meas.col(itx)-G_b_data*alpha_big).norm()};
+                double alpha_norm_big{alpha_big.norm()};
+
+                double res_norm_sml{(Ez_sct_meas.col(itx)-G_b_data*alpha_sml).norm()};
+                double alpha_norm_sml{alpha_sml.norm()};
+
+                double tikh_dist_big{
+                    std::sqrt(
+                        std::pow(
+                            std::log(
+                                res_norm_big
+                            ),
+                            2
+                        ) + std::pow(
+                            std::log(
+                                alpha_norm_big
+                            ),
+                            2
+                        )
+                    )
+                };
+
+                double tikh_dist_sml{
+                    std::sqrt(
+                        std::pow(
+                            std::log(
+                                res_norm_sml
+                            ),
+                            2
+                        ) + std::pow(
+                            std::log(
+                                alpha_norm_sml
+                            ),
+                            2
+                        )
+                    )
+                };
+
+                std::cerr << "\t\tCalculated tikh distances of " << tikh_dist_big << " and " << tikh_dist_sml << std::endl;
+
+                tikh_distances_for_tx[itx].insert(
+                    tikh_distances_for_tx[itx].begin(),
+                    tikh_dist_sml
+                );
+
+                tikh_distances_for_tx[itx].push_back(
+                    tikh_dist_big
+                );
+
+                // Check tikh_distances_for_tx[itx] for a dip.
+                std::size_t ndists{tikh_distances_for_tx[itx].size()};
+                if(2 < ndists)
+                {
+                    for(int id = 0; id < (ndists-2); ++id)
+                    {
+                        double dp0{tikh_distances_for_tx[itx][id+0]};
+                        double dp1{tikh_distances_for_tx[itx][id+1]};
+                        double dp2{tikh_distances_for_tx[itx][id+2]};
+                        if((dp1<dp0) && (dp1<dp2))
+                        {
+                            optimum_found_for_tx[itx] = true;
+                            double lambda_opt{
+                                lambda_sml*std::pow(
+                                    10,
+                                    id+1
+                                )
+                            };
+                            std::cerr << "\t\tThat means optimal lambda for tx " << itx << " is " << lambda_opt << std::endl;
+                            optimal_lambdas[itx] = lambda_opt;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 void Chamber::setupAntennas(std::string antennafile)
@@ -847,18 +982,14 @@ void ReadMatrixFromFile(
     int nrows,ncols;
     reader >> nrows;
     reader >> ncols;
-    std::cerr << "Reading a file with " << nrows << " rows and " << ncols << " columns..." << std::endl;
+
     matrix.resize(nrows,ncols);
     for(int mm = 0; mm < nrows;++mm)
     {
-        std::cerr << "Reading row " << mm << std::endl;
         for(int nn = 0; nn < ncols; ++nn)
         {
-
             reader >> matrix(mm,nn);
-            std::cerr << matrix(mm,nn) << "\t";
         }
-        std::cerr << std::endl;
     }
     reader.close();
 }

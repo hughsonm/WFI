@@ -81,7 +81,7 @@ public:
     std::complex<double> k2_b;
     Eigen::MatrixXcd Ez_inc,Ez_tot,Ez_sct;
     Eigen::MatrixXcd Ez_inc_d,Ez_tot_d,Ez_sct_d;
-    Eigen::MatrixXcd Ez_tot_meas;
+    Eigen::MatrixXcd Ez_tot_meas,Ez_sct_meas;
     bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready;
     bool G_b_domain_ready,G_b_data_ready;
 };

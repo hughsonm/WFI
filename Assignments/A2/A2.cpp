@@ -31,12 +31,20 @@ int main(int argc, char** argv)
     std::string data_filename(argv[5]);
 
     Chamber img_chamber(mesh_filename);
+    std::cerr << "Antennas" << std::endl;
     img_chamber.setupAntennas(antennas_filename);
+    std::cerr << "Freq" << std::endl;
     img_chamber.setFrequency(frequency);
+    std::cerr << "Probes" << std::endl;
     img_chamber.setupProbes(probes_filename);
+    std::cerr << "Measurement" << std::endl;
     img_chamber.readMeasuredData(data_filename);
+    std::cerr << "CalcEzTot" << std::endl;
+    img_chamber.calcDataEzTot();
+
 
     img_chamber.buildDataGreen();
+    std::cerr << "Gon try to build Annihilator!" << std::endl;
     img_chamber.buildAnnihilator();
 
 
