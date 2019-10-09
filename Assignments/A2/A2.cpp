@@ -10,16 +10,6 @@
 
 #include "../A1/mom_driver.h"
 
-bool char_is_comma(char c)
-{
-    return(c==',');
-}
-
-bool char_is_plusminus(char c)
-{
-    return(c=='+' || c=='-');
-}
-
 int main(int argc, char** argv)
 {
     gmsh::initialize();
