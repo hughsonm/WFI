@@ -32,26 +32,18 @@ int main(int argc, char** argv)
     std::cerr << "CalcEzTot" << std::endl;
     img_chamber.calcDataEzTot();
 
+    WriteMatrixToFile(
+        "Points.txt",
+        img_chamber.mesh.points
+    );
+    WriteMatrixToFile(
+        "Tri.txt",
+        img_chamber.mesh.tri
+    );
 
     img_chamber.buildDataGreen();
     std::cerr << "Gon try to build Annihilator!" << std::endl;
     img_chamber.buildAnnihilator();
-
-
-    Eigen::MatrixXcd Ez_tot_d_meas;
-    ReadMatrixFromFile(
-        "Ez_tot_d.txt",
-        Ez_tot_d_meas
-    );
-    std::cerr << "Here is our data!" << std::endl;
-    std::cerr << Ez_tot_d_meas << std::endl;
-
-    std::cerr << "Measured data is " << Ez_tot_d_meas.rows() << " by " << Ez_tot_d_meas.cols() << std::endl;
-    std::cerr << "We have " << img_chamber.probe_points.rows() << " probes" << std::endl;
-    std::cerr << "We have " << img_chamber.antennas.size() << " antennas" << std::endl;
-
-    assert(Ez_tot_d_meas.rows()==img_chamber.probe_points.rows());
-    assert(Ez_tot_d_meas.cols()==img_chamber.antennas.size());
 
     gmsh::finalize();
     return(0);
