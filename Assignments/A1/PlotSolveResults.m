@@ -1,6 +1,6 @@
 clearvars;
 
-ITX = 1;
+ITX = 2;
 FREQ = 1E9;
 CNAUGHT = 2.9979E8;
 K_B = (2*pi*FREQ)/CNAUGHT;
