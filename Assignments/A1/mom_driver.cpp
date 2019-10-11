@@ -403,13 +403,22 @@ void Chamber::buildAnnihilator(void)
 {
     auto ntx{antennas.size()};
     auto ntri{mesh.areas.size()};
-    std::cerr << "Resizing Ez_sct_meas to " << Ez_tot_meas.rows() << " by " << Ez_tot_meas.cols() << std::endl;
+
     Ez_sct_meas.resize(Ez_tot_meas.rows(),Ez_tot_meas.cols());
 
+    if(!Ez_inc_d_ready)
+    {
+        std::cerr << "Annihilator requires antennas, probes, and frequency to be set up first." << std::endl;
+        assert(0==1);
+    }
     Ez_sct_meas = Ez_tot_meas - Ez_inc_d;
 
-    std::cerr << "Ez_sct_meas = " << std::endl;
-    std::cerr << Ez_sct_meas << std::endl;
+    if(!G_b_data_ready)
+    {
+        std::cerr << "Annihilator needs G_b_data. Building it now..." << std::endl;
+        buildDataGreen();
+        G_b_data_ready = true;
+    }
 
     Eigen::MatrixXcd PhP{G_b_data.adjoint()*G_b_data};
     Eigen::MatrixXcd I{
@@ -462,7 +471,6 @@ void Chamber::buildAnnihilator(void)
 
             if(!optimum_found_for_tx[itx])
             {
-                std::cerr << "\tSolving system for tx " << itx << std::endl;
                 // Solve system
                 Eigen::VectorXcd alpha_big{LU_big.solve(Phd_all.col(itx))};
                 Eigen::VectorXcd alpha_sml{LU_sml.solve(Phd_all.col(itx))};
@@ -505,8 +513,6 @@ void Chamber::buildAnnihilator(void)
                     )
                 };
 
-                std::cerr << "\t\tCalculated tikh distances of " << tikh_dist_big << " and " << tikh_dist_sml << std::endl;
-
                 tikh_distances_for_tx[itx].insert(
                     tikh_distances_for_tx[itx].begin(),
                     tikh_dist_sml
@@ -534,7 +540,7 @@ void Chamber::buildAnnihilator(void)
                                     id+1
                                 )
                             };
-                            std::cerr << "\t\tThat means optimal lambda for tx " << itx << " is " << lambda_opt << std::endl;
+                            std::cerr << "\t\tOptimal lambda for tx " << itx << " is " << lambda_opt << std::endl;
                             optimal_lambdas[itx] = lambda_opt;
                             std::cerr << "\t\tAssigned!" << std::endl;
                         }
@@ -564,7 +570,11 @@ void Chamber::buildAnnihilator(void)
 
         for(auto ii{ll};ii<optimal_lambdas.size();++ii)
         {
-            if(!alpha_is_calculated[ii])
+	    // Check which alpha-systems use this lambda for regularization.
+	    bool system_uses_this_lambda{
+	        std::abs((optimal_lambdas[ii]-lambda_opt)/lambda_opt) < 0.01
+	    };
+            if(system_uses_this_lambda && !alpha_is_calculated[ii])
             {
                 optimal_alphas.col(ii) = LU_opt.solve(Phd_all.col(ii));
                 std::cerr << "\tSolved and assigned!" << std::endl;
@@ -584,6 +594,19 @@ void Chamber::buildAnnihilator(void)
 
     // From alpha, I can get a u^T, by:
     // u^T(r) = u^I(r) + G_b_domain*alpha
+    if(!Ez_inc_ready)
+    {
+        std::cerr << "Annihilator requires that Ez_inc over the domain be available" << std::endl;
+        assert(0==1);
+    }
+    if(!G_b_domain_ready)
+    {
+        std::cerr << "Annihilator need G_b_domain. Building it now..." << std::endl;
+        mesh.buildDomainGreen(
+            G_b_domain,
+            k2_b
+        );
+    }
     std::cerr << "Making the matrix of total fields in imaging domain..." << std::endl;
     std::cerr << "Ez_inc is " << Ez_inc.rows() << " by " << Ez_inc.cols() << std::endl;
     std::cerr << "G_b_domain is " << G_b_domain.rows() << " by " << G_b_domain.cols() << std::endl;
@@ -602,24 +625,24 @@ void Chamber::buildAnnihilator(void)
 
     for(auto ii{0}; ii < ntri; ++ii)
     {
-        std::cerr << "Calculating contrast number " << ii << " of " << ntri << std::endl;
+        //std::cerr << "Calculating contrast number " << ii << " of " << ntri << std::endl;
         std::complex<double> numerator{0.0},denominator{0.0};
-        std::cerr << "num and den start as " << numerator << "," << denominator << std::endl;
+        //std::cerr << "num and den start as " << numerator << "," << denominator << std::endl;
         for(auto jj{0}; jj<ntx; ++jj)
         {
             std::complex<double> uij{Ez_tot_opt(ii,jj)};
             std::complex<double> uijstar{std::conj(uij)};
             std::complex<double> aij{optimal_alphas(ii,jj)};
-            std::cerr << "\tPulling out " << uij << " and " << uijstar << std::endl;
-            std::cerr << "\tAlso using alpha = " << aij << std::endl;
-            std::cerr << "\tGonna add " << uijstar*aij << " to " << numerator << std::endl;
-            std::cerr << "\tGonna add " << uijstar*uij << " to " << denominator << std::endl;
+            //std::cerr << "\tPulling out " << uij << " and " << uijstar << std::endl;
+            //std::cerr << "\tAlso using alpha = " << aij << std::endl;
+            //std::cerr << "\tGonna add " << uijstar*aij << " to " << numerator << std::endl;
+            //std::cerr << "\tGonna add " << uijstar*uij << " to " << denominator << std::endl;
             numerator += uijstar*aij;
             denominator += uijstar*uij;
-            std::cerr << "\tIt worked!!" << std::endl;
+            //std::cerr << "\tIt worked!!" << std::endl;
         }
-        std::cerr << "Now, num = " << numerator << ", and den = " << denominator << std::endl;
-        std::cerr << "Divide them, and we get " << numerator/denominator << std::endl;
+        //std::cerr << "Now, num = " << numerator << ", and den = " << denominator << std::endl;
+        //std::cerr << "Divide them, and we get " << numerator/denominator << std::endl;
         chi_opt(ii) = numerator/denominator;
 
     }
@@ -767,6 +790,7 @@ void Chamber::calcDomainEzTot(void)
             std::cerr << "Building L_domain" << std::endl;
             L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
             L_domain = -G_b_domain;
+
             for(int cc = 0; cc< Chi.cols(); cc++)
             {
                 L_domain.col(cc) *= Chi(cc,cc);
@@ -854,6 +878,10 @@ void Chamber::calcDataEzTot(void)
         Ez_sct_d.col(tt) = G_b_data*(Chi*(Ez_tot.col(tt)));
     }
     Ez_tot_d = Ez_inc_d + Ez_sct_d;
+    Ez_inc_d_ready = true;
+    Ez_sct_d_ready = true;
+    Ez_tot_d_ready = true;
+
 }
 
 

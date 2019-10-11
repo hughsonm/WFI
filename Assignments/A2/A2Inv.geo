@@ -1,11 +1,11 @@
-ff = 1e9;
+ff = 5e9;
 cc = 3e8;
 
 lambda = cc/ff;
 
 cl = lambda / 10;
 
-img_dom_rad = 9e-2;
+img_dom_rad = 7.2e-2;
 IMG_TAG = 2000;
 //+
 Point(1) = {img_dom_rad, 0, 0, cl};

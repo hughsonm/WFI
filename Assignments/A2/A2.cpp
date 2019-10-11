@@ -29,9 +29,7 @@ int main(int argc, char** argv)
     img_chamber.setupProbes(probes_filename);
     std::cerr << "Measurement" << std::endl;
     img_chamber.readMeasuredData(data_filename);
-    std::cerr << "CalcEzTot" << std::endl;
-    img_chamber.calcDataEzTot();
-
+    
     WriteMatrixToFile(
         "Points.txt",
         img_chamber.mesh.points

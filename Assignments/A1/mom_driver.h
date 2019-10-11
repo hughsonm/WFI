@@ -37,6 +37,13 @@ public:
     Eigen::MatrixXd tri;
     Eigen::MatrixXd centroids;
     Eigen::VectorXd areas;
+    bool ready{false};
+};
+
+class Field{
+    Eigen::MatrixXd * field_locs;
+    Eigen::MatrixXcd field_vals;
+    bool ready{false};
 };
 
 class Antenna
@@ -51,6 +58,7 @@ public:
         Eigen::VectorXcd & Ez,
         const Eigen::MatrixXd & points
     );
+    bool ready{false};
 };
 
 class Chamber
@@ -83,6 +91,7 @@ public:
     Eigen::MatrixXcd Ez_inc_d,Ez_tot_d,Ez_sct_d;
     Eigen::MatrixXcd Ez_tot_meas,Ez_sct_meas;
     bool Ez_inc_ready,Ez_tot_ready,Ez_sct_ready;
+    bool Ez_inc_d_ready,Ez_tot_d_ready,Ez_sct_d_ready;
     bool G_b_domain_ready,G_b_data_ready;
 };
 
