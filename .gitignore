@@ -21,8 +21,11 @@
 *tri_areas.txt
 *tri_centroids.txt
 Assignments/A1/Report
+Assignments/A1/eps_r.txt
 Assignments/A2/Tri.txt
 Assignments/A2/Alphas.txt
 Assignments/A2/Chi.txt
 Assignments/A2/Ez_tot_opt.txt
 Assignments/A2/Points.txt
+Assignments/A2/eps_r.txt
+*.py

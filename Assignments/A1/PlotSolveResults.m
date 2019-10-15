@@ -1,6 +1,6 @@
 clearvars;
 
-ITX = 2;
+ITX = 1;
 FREQ = 1E9;
 CNAUGHT = 2.9979E8;
 K_B = (2*pi*FREQ)/CNAUGHT;
@@ -17,8 +17,9 @@ Ez_inc =    ReadCppMatrixFromFile('Ez_inc.txt');
 Ez_sct =    ReadCppMatrixFromFile('Ez_sct.txt');
 Ez_tot =    ReadCppMatrixFromFile('Ez_tot.txt');
 
-k2 =        ReadCppVectorFromFile('k2_fgd.txt');
-eps_r = k2/(K_B)^2;
+eps_r =        ReadCppVectorFromFile('eps_r.txt');
+k2 = eps_r*K_B^2;
+
 
 probes =    ReadCppMatrixFromFile('probe_xyz.txt');
 Ez_inc_p =  ReadCppMatrixFromFile('Ez_inc_d.txt');
@@ -89,11 +90,10 @@ t_Ez_tot = t_Ez_tot(I);
 
 f_ez = figure(3);
 plot_start_idx = max(1,find(0<t_theta,1)-1);
-ss = plot(...
+ss = scatter(...
     t_theta(plot_start_idx:end),...
     abs(t_Ez_tot(plot_start_idx:end)),...
-    'b*-');%,...
-%'MarkerEdgeAlpha',0.7);
+    'MarkerEdgeAlpha',0.3);
 title('Electric Field Distribution Inside Shell');
 xlabel('Element Centroid Angular Position [deg]');
 ylabel('E_Z^T');

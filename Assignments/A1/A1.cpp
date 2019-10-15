@@ -32,66 +32,87 @@ int main (int argc, char **argv)
 
     img_chamber.calcDataEzTot();
 
-    Eigen::MatrixXcd M_Ez_inc;
+    Eigen::MatrixXcd M_Ez_out;
+
     FormFieldMatrix(
-        M_Ez_inc,
+        M_Ez_out,
         img_chamber.Ez_inc
+    );
+    WriteMatrixToFile(
+        "Ez_inc.txt",
+        M_Ez_out
+    );
+
+    FormFieldMatrix(
+        M_Ez_out,
+        img_chamber.Ez_sct
+    );
+    WriteMatrixToFile(
+        "Ez_sct.txt",
+        M_Ez_out
+    );
+
+    FormFieldMatrix(
+        M_Ez_out,
+        img_chamber.Ez_tot
+    );
+    WriteMatrixToFile(
+        "Ez_tot.txt",
+        M_Ez_out
     );
 
     WriteMatrixToFile(
-        "Ez_inc.txt",
-        M_Ez_inc
+        "tri_pts.txt",
+        img_chamber.mesh.points
     );
-    // WriteMatrixToFile(
-    //     "Ez_sct.txt",
-    //     img_chamber.Ez_sct
-    // );
-	// WriteMatrixToFile(
-	// 	"Ez_tot.txt",
-	// 	img_chamber.Ez_tot
-	// );
-    //
-    // WriteMatrixToFile(
-    //     "tri_pts.txt",
-    //     img_chamber.mesh.points
-    // );
-    // WriteMatrixToFile(
-    //     "tri_tri.txt",
-    //     img_chamber.mesh.tri
-    // );
-    // WriteVectorToFile(
-    //     "tri_areas.txt",
-    //     img_chamber.mesh.areas
-    // );
-    // WriteMatrixToFile(
-    //     "tri_centroids.txt",
-    //     img_chamber.mesh.centroids
-    // );
-    //
-    // WriteVectorToFile(
-    //     "k2_fgd.txt",
-    //     img_chamber.k2_f
-    // );
-    //
-    // WriteMatrixToFile(
-    //     "probe_xyz.txt",
-    //     img_chamber.probe_points
-    // );
-    //
-    // WriteMatrixToFile(
-    //     "Ez_inc_d.txt",
-    //     img_chamber.Ez_inc_d
-    // );
-    //
-    // WriteMatrixToFile(
-    //     "Ez_sct_d.txt",
-    //     img_chamber.Ez_sct_d
-    // );
-    //
-    // WriteMatrixToFile(
-    //     "Ez_tot_d.txt",
-    //     img_chamber.Ez_tot_d
-    // );
+    WriteMatrixToFile(
+        "tri_tri.txt",
+        img_chamber.mesh.tri
+    );
+    WriteVectorToFile(
+        "tri_areas.txt",
+        img_chamber.mesh.areas
+    );
+    WriteMatrixToFile(
+        "tri_centroids.txt",
+        img_chamber.mesh.centroids
+    );
+
+    img_chamber.target.eps_r.WriteValsToFile(
+        "eps_r.txt"
+    );
+    WriteMatrixToFile(
+        "probe_xyz.txt",
+        img_chamber.probe_points
+    );
+
+    FormFieldMatrix(
+        M_Ez_out,
+        img_chamber.Ez_inc_d
+    );
+    WriteMatrixToFile(
+        "Ez_inc_d.txt",
+        M_Ez_out
+    );
+
+    FormFieldMatrix(
+        M_Ez_out,
+        img_chamber.Ez_sct_d
+    );
+    WriteMatrixToFile(
+        "Ez_sct_d.txt",
+        M_Ez_out
+    );
+
+    FormFieldMatrix(
+        M_Ez_out,
+        img_chamber.Ez_tot_d
+    );
+    WriteMatrixToFile(
+        "Ez_tot_d.txt",
+        M_Ez_out
+    );
+
 
     std::cerr << "\nFinalizing gmsh...";
     gmsh::finalize();

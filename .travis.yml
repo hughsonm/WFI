@@ -20,3 +20,7 @@ script:
   - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
   - gmsh -2 -clscale 0.2 -o Ring.msh Ring.geo
   - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
+  - cd ../A2
+  - gmsh -2 -o A2Fwd.msh -clscale 1.0 A2Fwd.geo
+  - gmsh -2 -o A2Inv.msh -clscale 1.0 A2Inv.geo
+  - ../A1/A2.out A2Fwd.msh Tag2EpsRelFwd.txt Antennas4A2.txt 5e9 ProbePositions4A2.txt

@@ -290,7 +290,7 @@ void Mesh::buildDomainGreen(
                 Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
             }
             // Background green's function is symmetric
-            G(mm,nn) = Gmn;            
+            G(mm,nn) = Gmn;
         }
     }
 }
@@ -431,9 +431,8 @@ void Chamber::buildAnnihilator(void)
     Ez_sct_meas.resize(ntx);
 
     if(!Ez_inc_d.size())
-    {
-        std::cerr << "Annihilator requires antennas, probes, and frequency to be set up first." << std::endl;
-        assert(0==1);
+    {        
+        calcDataEzInc();
     }
 
     Eigen::MatrixXcd Ez_sct_meas_mat(G_b_data.rows(),ntx);
@@ -632,8 +631,7 @@ void Chamber::buildAnnihilator(void)
     // u^T(r) = u^I(r) + G_b_domain*alpha
     if(!Ez_inc.size())
     {
-        std::cerr << "Annihilator requires that Ez_inc over the domain be available" << std::endl;
-        assert(0==1);
+        calcDomainEzInc();
     }
     if(!G_b_domain.rows() || !G_b_domain.cols())
     {
@@ -754,15 +752,6 @@ void Chamber::setFrequency(double freq)
     frequency = freq;
     double omega = 2*M_PI*freq;
     k2_b = omega*omega/CNAUGHT/CNAUGHT;
-    // k2_f.resize(eps_r.size());
-    // for(int ee = 0; ee<eps_r.size(); ee++)
-    // {
-    //     k2_f(ee) = k2_b*eps_r(ee);
-    // }
-    // Ez_inc_ready = false;
-    // Ez_sct_ready = false;
-    // Ez_tot_ready = false;
-    // G_b_domain_ready = false;
 }
 
 void Chamber::calcDomainEzInc(void)
@@ -777,16 +766,9 @@ void Chamber::calcDomainEzInc(void)
             mesh.centroids,
             frequency
         );
-        std::cerr << "Assigning Ez for antenna " << aa << " of " << antennas.size() << std::endl;
-        std::cerr << "Vector has " << ez_from_antenna.size() << " elements" << std::endl;
-        std::cerr << "Points: " << mesh.centroids.rows() << std::endl;
         field_from_antenna.setLocations(mesh.centroids);
         field_from_antenna.setVals(ez_from_antenna);
-        Eigen::VectorXcd vt;
-        field_from_antenna.getVals(vt);
-        std::cerr << vt << std::endl;
         Ez_inc[aa] = field_from_antenna;
-        std::cerr << vt << std::endl;
     }
 }
 
@@ -810,23 +792,6 @@ void Chamber::calcDataEzInc(void)
 
 void Chamber::calcDomainEzTot(void)
 {
-    // int entry_point = 0;
-    // if(Ez_tot.ready)
-    // {
-    //     entry_point = 3;
-    // }
-    // else if(Ez_inc.ready && Ez_sct.ready)
-    // {
-    //     entry_point = 2;
-    // }
-    // else if(G_b_domain_ready)
-    // {
-    //     entry_point = 1;
-    // }
-    // else
-    // {
-    //     entry_point = 0;
-    // }
     auto entry_point{0};
     switch(entry_point)
     {
@@ -835,12 +800,6 @@ void Chamber::calcDomainEzTot(void)
             // Calculate incident fields.
             //Ez_inc.resize(mesh.areas.size(),antennas.size());
             calcDomainEzInc();
-            for(auto aa{0};aa<antennas.size();++aa)
-            {
-                Eigen::VectorXcd vt;
-                Ez_inc[aa].getVals(vt);
-                std::cerr << vt << std::endl;
-            }
 
             // Build domain green matrix
             std::cerr << "Building domain green..." << std::endl;
@@ -861,7 +820,7 @@ void Chamber::calcDomainEzTot(void)
             {
                 Chi(dd,dd) = k2_b*eps_r_from_target(dd)-k2_b;
             }
-            std::cerr << eps_r_from_target << std::endl;
+
             // Build domain L operator
             std::cerr << "Building L_domain" << std::endl;
             // L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
@@ -880,16 +839,9 @@ void Chamber::calcDomainEzTot(void)
         }
         case 1:
         {
-            std::cerr << "Case 1 " << std::endl;
-            // Allocate space for incident and total fields.
-            // Ez_tot.resize(mesh.areas.size(),antennas.size());
-            // Ez_tot.setZero();
-            // Ez_sct.resize(mesh.areas.size(),antennas.size());
-            // Ez_sct.setZero();
             Ez_sct.resize(antennas.size());
             for(auto ss{0}; ss < Ez_sct.size(); ss++)
             {
-                std::cerr << "Setting locations of Ez_sct field " << ss << " of " << Ez_sct.size() << std::endl;
                 Ez_sct[ss].setLocations(mesh.centroids);
             }
             // Calculate all the scattered fields
@@ -897,8 +849,6 @@ void Chamber::calcDomainEzTot(void)
             {
                 Eigen::VectorXcd inc_vec,sct_vec;
                 Ez_inc[jj].getVals(inc_vec);
-                std::cerr << "Inc vec has " << inc_vec.size() << " elements" << std::endl;
-                std::cerr << "Chi is a square of size " << Chi.rows() << std::endl;
                 sct_vec = LU_L.solve(
                     G_b_domain*(
                         Chi*inc_vec
@@ -909,26 +859,16 @@ void Chamber::calcDomainEzTot(void)
         }
         case 2:
         {
-            std::cerr << "Case 2 " << std::endl;
             // Add scattered to indident to get total fields
             Ez_tot.resize(antennas.size());
             for(auto tt{0}; tt<antennas.size(); ++tt)
             {
                 Eigen::VectorXcd inc_vec,sct_vec,tot_vec;
-                std::cerr << "Getting incident for tx " << tt << std::endl;
                 Ez_inc[tt].getVals(inc_vec);
-                std::cerr << "Getting scattered for tx " << tt << std::endl;
                 Ez_sct[tt].getVals(sct_vec);
-                std::cerr << "Adding them together..." << std::endl;
                 tot_vec = inc_vec+sct_vec;
-                std::cerr << "Assigning these " << tot_vec.size() << " vals to Ez_tot" << std::endl;
                 Ez_tot[tt].setVals(tot_vec);
             }
-            std::cerr << "Case 2 complete" << std::endl;
-        }
-        case 3:
-        {
-            // Don't actually need to do anything.
         }
     }
 }

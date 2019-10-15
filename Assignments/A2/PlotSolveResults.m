@@ -9,8 +9,8 @@ K_B = (2*pi*FREQ)/CNAUGHT;
 LAMBDA = CNAUGHT/FREQ;
 
 %% Plot Forward Problem
-fwd_k2 =        ReadCppVectorFromFile('k2_fgd.txt');
-fwd_eps_r =     fwd_k2/(K_B)^2;
+fwd_eps_r =     ReadCppVectorFromFile('eps_r.txt');
+fwd_k2 =        fwd_eps_r*(K_B)^2;
 fwd_tri =       ReadCppMatrixFromFile('tri_tri.txt');
 fwd_pts =       ReadCppMatrixFromFile('tri_pts.txt');
 
@@ -31,41 +31,115 @@ Ez_inc_p =  ReadCppMatrixFromFile('Ez_inc_d.txt');
 Ez_sct_p =  ReadCppMatrixFromFile('Ez_sct_d.txt');
 Ez_tot_p =  ReadCppMatrixFromFile('Ez_tot_d.txt');
 
+xyz_p =     ReadCppMatrixFromFile('probe_xyz.txt');
+
 figure();
 
-subplot(2,2,1);
+subplot(4,2,1);
 trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),real(fwd_eps_r));
-title('eps_r');
+title('Re[\epsilon_r]');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 colorbar;axis image; view(2);
 
+subplot(4,2,2);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),imag(fwd_eps_r));
+title('Im[\epsilon_r]');
+xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+colorbar;axis image; view(2);
 
-subplot(2,2,2);
-trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),abs(Ez_inc(:,ITX)),...
+subplot(4,2,3);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),real(Ez_inc(:,ITX)),...
     'LineStyle','None');
-title('|E_z^{inc}|');
+title('Re[E_z^{inc}]');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 colorbar;
 axis image;
 view(2);
 
-subplot(2,2,3);
-trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),abs(Ez_sct(:,ITX)),...
+subplot(4,2,4);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),imag(Ez_inc(:,ITX)),...
     'LineStyle','None');
-title('|E_z^{sct}|');
+title('Im[E_z^{inc}]');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 colorbar;
 axis image;
 view(2);
 
-subplot(2,2,4);
-trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),abs(Ez_tot(:,ITX)),...
+subplot(4,2,5);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),real(Ez_tot(:,ITX)),...
     'LineStyle','None');
-title('|E_z^{tot}|');
+title('Re[E_z^{tot}]');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
 colorbar;
 axis image;
 view(2);
+
+subplot(4,2,6);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),imag(Ez_tot(:,ITX)),...
+    'LineStyle','None');
+title('Im[E_z^{tot}]');
+xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+colorbar;
+axis image;
+view(2);
+
+subplot(4,2,7);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),real(Ez_sct(:,ITX)),...
+    'LineStyle','None');
+title('Re[E_z^{sct}]');
+xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+colorbar;
+axis image;
+view(2);
+
+subplot(4,2,8);
+trisurf(fwd_tri,fwd_pts(:,1),fwd_pts(:,2),fwd_pts(:,3),imag(Ez_sct(:,ITX)),...
+    'LineStyle','None');
+title('Im[E_z^{sct}]');
+xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
+colorbar;
+axis image;
+view(2);
+
+
+figure();
+sep = 2*max(max(abs(Ez_inc_p)));
+subplot(3,2,1);
+for ii = 1:size(Ez_inc_p,2)
+    plot3(xyz_p(:,1),xyz_p(:,2),real(Ez_inc_p(:,ii))+ii*sep);hold on;
+end
+title('Re[E_z^{inc}] at probes');
+subplot(3,2,2);
+for ii = 1:size(Ez_inc_p,2)
+    plot3(xyz_p(:,1),xyz_p(:,2),imag(Ez_inc_p(:,ii))+ii*sep);hold on;
+end
+title('Im[E_z^{inc}] at probes');
+
+sep = 2*max(max(abs(Ez_tot_p)));
+subplot(3,2,3);
+for ii = 1:size(Ez_tot_p,2)
+    plot3(xyz_p(:,1),xyz_p(:,2),real(Ez_tot_p(:,ii))+ii*sep);hold on;
+end
+title('Re[E_z^{tot}] at probes');
+subplot(3,2,4);
+for ii = 1:size(Ez_tot_p,2)
+    plot3(xyz_p(:,1),xyz_p(:,2),imag(Ez_tot_p(:,ii))+ii*sep);hold on;
+end
+title('Im[E_z^{tot}] at probes');
+
+sep = 2*max(max(abs(Ez_sct_p)));
+subplot(3,2,5);
+for ii = 1:size(Ez_sct_p,2)
+    plot3(xyz_p(:,1),xyz_p(:,2),real(Ez_sct_p(:,ii))+ii*sep);hold on;
+end
+title('Re[E_z^{sct}] at probes');
+subplot(3,2,6);
+for ii = 1:size(Ez_sct_p,2)
+    plot3(xyz_p(:,1),xyz_p(:,2),imag(Ez_sct_p(:,ii))+ii*sep);hold on;
+end
+title('Im[E_z^{sct}] at probes');
+
+
 
 
 %% Plot Inversion
@@ -84,29 +158,42 @@ inv_tri = inv_tri+1; % Add one because this was made by a zero-based indexing co
 
 
 
-for itx = 1:12:size(Ez_opt,2)
+for itx = 1:4:size(Ez_opt,2)
 %     itx = 1;
     figure();
-    subplot(3,2,1);
+    subplot(4,2,1);
     
     trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),real(alphas(:,itx))); view(2);colorbar;axis image;
-    title(['Contrast Sources for tx ' num2str(itx)]);
+    title(['Re[w] for tx ' num2str(itx)]);     
     
-    subplot(3,2,3);
+    subplot(4,2,2);
+    
+    trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),imag(alphas(:,itx))); view(2);colorbar;axis image;
+    title(['Im[w] for tx ' num2str(itx)]);            
+    
+    subplot(4,2,3);
     trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),real(X));view(2);colorbar;axis image;
-    title(['Real \chi for tx ' num2str(itx)]);
+    title('Re[\chi]');
     
-    subplot(3,2,4);
+    subplot(4,2,4);
     trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),imag(X));view(2);colorbar;axis image;
-    title(['Imag \chi for tx ' num2str(itx)]);
-    
-    subplot(3,2,5);
+    title('Im[\chi]');
+            
+    subplot(4,2,5);
     trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),real(Ez_opt(:,itx)));view(2);colorbar;axis image;
-    title(['Optimal E_{z}^{tot} for tx ' num2str(itx)]);
+    title(['Optimal Re[E_{z}^{tot}] for tx ' num2str(itx)]);
     
-    subplot(3,2,6);
+    subplot(4,2,6);
+    trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),imag(Ez_opt(:,itx)));view(2);colorbar;axis image;
+    title(['Optimal Im[E_{z}^{tot}] for tx ' num2str(itx)]);
+    
+    subplot(4,2,7);
     trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),real(alphas(:,itx)./Ez_opt(:,itx)));view(2);colorbar;axis image;
-    title(['W/E for tx ' num2str(itx)]);
+    title(['Re[W/E] for tx ' num2str(itx)]);
+    
+    subplot(4,2,8);
+    trisurf(inv_tri,inv_pts(:,1),inv_pts(:,2),0*inv_pts(:,1),imag(alphas(:,itx)./Ez_opt(:,itx)));view(2);colorbar;axis image;
+    title(['Im[W/E] for tx ' num2str(itx)]);
 end
 
 
