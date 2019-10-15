@@ -259,7 +259,7 @@ void Mesh::buildDomainGreen(
 
     for(int mm = 0; mm < n_tri; mm++)
     {
-        for(int nn = mm; nn < n_tri; nn++)
+        for(int nn = 0; nn < n_tri; nn++)
         {
             Eigen::VectorXd dxyz = (centroids.row(nn)-centroids.row(mm)).transpose();
             double dmn = std::sqrt(dxyz.transpose() * dxyz);
@@ -290,8 +290,7 @@ void Mesh::buildDomainGreen(
                 Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
             }
             // Background green's function is symmetric
-            G(mm,nn) = Gmn;
-            G(nn,mm) = Gmn;
+            G(mm,nn) = Gmn;            
         }
     }
 }
