@@ -7,6 +7,7 @@
 #include <complex>
 #include <cmath>
 #include <boost/math/special_functions/hankel.hpp>
+#include <filesystem>
 
 #include "mom_driver.h"
 
@@ -18,6 +19,7 @@
 int main (int argc, char **argv)
 {
     gmsh::initialize();
+    assert(argc == 7);
     Chamber img_chamber(argv[1]);
 
     img_chamber.setTarget(argv[2]);
@@ -32,6 +34,21 @@ int main (int argc, char **argv)
 
     img_chamber.calcDataEzTot();
 
+    std::string outdir(argv[6]);
+    if(not (outdir.back()=='/' or outdir.back()=='\\'))
+    {
+        outdir += "/";
+    }
+    std::cerr << "Making directory for output..." << std::endl;
+    auto dir_fail{std::filesystem::create_directory(outdir)};
+
+    if(dir_fail)
+    {
+        std::cerr << dir_fail << std::endl;
+        std::cerr << "Failed to make directory" << std::endl;
+        assert(false);
+    }
+
     Eigen::MatrixXcd M_Ez_out;
 
     FormFieldMatrix(
@@ -39,7 +56,7 @@ int main (int argc, char **argv)
         img_chamber.Ez_inc
     );
     WriteMatrixToFile(
-        "Ez_inc.txt",
+        outdir + "Ez_inc.txt",
         M_Ez_out
     );
 
@@ -48,7 +65,7 @@ int main (int argc, char **argv)
         img_chamber.Ez_sct
     );
     WriteMatrixToFile(
-        "Ez_sct.txt",
+        outdir + "Ez_sct.txt",
         M_Ez_out
     );
 
@@ -57,32 +74,32 @@ int main (int argc, char **argv)
         img_chamber.Ez_tot
     );
     WriteMatrixToFile(
-        "Ez_tot.txt",
+        outdir + "Ez_tot.txt",
         M_Ez_out
     );
 
     WriteMatrixToFile(
-        "tri_pts.txt",
+        outdir + "tri_pts.txt",
         img_chamber.mesh.points
     );
     WriteMatrixToFile(
-        "tri_tri.txt",
+        outdir + "tri_tri.txt",
         img_chamber.mesh.tri
     );
     WriteVectorToFile(
-        "tri_areas.txt",
+        outdir + "tri_areas.txt",
         img_chamber.mesh.areas
     );
     WriteMatrixToFile(
-        "tri_centroids.txt",
+        outdir + "tri_centroids.txt",
         img_chamber.mesh.centroids
     );
 
     img_chamber.target.eps_r.WriteValsToFile(
-        "eps_r.txt"
+        outdir + "eps_r.txt"
     );
     WriteMatrixToFile(
-        "probe_xyz.txt",
+        outdir + "probe_xyz.txt",
         img_chamber.probe_points
     );
 
@@ -91,7 +108,7 @@ int main (int argc, char **argv)
         img_chamber.Ez_inc_d
     );
     WriteMatrixToFile(
-        "Ez_inc_d.txt",
+        outdir + "Ez_inc_d.txt",
         M_Ez_out
     );
 
@@ -100,7 +117,7 @@ int main (int argc, char **argv)
         img_chamber.Ez_sct_d
     );
     WriteMatrixToFile(
-        "Ez_sct_d.txt",
+        outdir + "Ez_sct_d.txt",
         M_Ez_out
     );
 
@@ -109,7 +126,7 @@ int main (int argc, char **argv)
         img_chamber.Ez_tot_d
     );
     WriteMatrixToFile(
-        "Ez_tot_d.txt",
+        outdir + "Ez_tot_d.txt",
         M_Ez_out
     );
 
