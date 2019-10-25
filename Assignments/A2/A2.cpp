@@ -13,7 +13,7 @@
 int main(int argc, char** argv)
 {
     gmsh::initialize();
-    assert(argc == 6);
+    assert(argc == 7);
     std::cerr << "Readimg mesh" << std::endl;
     std::string mesh_filename(argv[1]);
     std::cerr << "Reading Antennas" << std::endl;
@@ -35,19 +35,54 @@ int main(int argc, char** argv)
     std::cerr << "Measurement" << std::endl;
     img_chamber.readMeasuredData(data_filename);
 
-    WriteMatrixToFile(
-        "Points.txt",
-        img_chamber.mesh.points
-    );
-    WriteMatrixToFile(
-        "Tri.txt",
-        img_chamber.mesh.tri
-    );
+
 
     img_chamber.buildDataGreen();
     std::cerr << "Gon try to build Annihilator!" << std::endl;
-    img_chamber.buildAnnihilator();
+    img_chamber.A2Q5();
 
+    std::string outdir(argv[6]);
+    if(not (outdir.back()=='/' or outdir.back()=='\\'))
+    {
+        outdir += "/";
+    }
+    if(std::filesystem::exists(outdir))
+    {
+        std::cerr << "Directory: " << outdir << " already exists" << std::endl;
+    }
+    else
+    {
+        std::cerr << "Directory: " << outdir << " does not exist." << std::endl;
+        auto dir_success{std::filesystem::create_directory(outdir)};
+
+        if(not dir_success)
+        {
+            std::cerr << dir_success << std::endl;
+            std::cerr << "Failed to make directory" << std::endl;
+            assert(false);
+        }
+        else
+        {
+            std::cerr << "Now it does." << std::endl;
+        }
+    }
+
+    WriteMatrixToFile(
+        outdir + "Points.txt",
+        img_chamber.mesh.points
+    );
+    WriteMatrixToFile(
+        outdir + "Tri.txt",
+        img_chamber.mesh.tri
+    );
+    WriteMatrixToFile(
+      outdir + "Gb.txt",
+      img_chamber.G_b_domain
+    );
+    WriteMatrixToFile(
+      outdir + "Gbd.txt",
+      img_chamber.G_b_data
+    );
     gmsh::finalize();
     return(0);
 }

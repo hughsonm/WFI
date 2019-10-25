@@ -422,7 +422,15 @@ void Chamber::buildDataGreen(void)
     );
 }
 
-void Chamber::buildAnnihilator(void)
+void Chamber::A2Q3(void)
+{
+  // Annihilating the Annihilator
+
+  // Basis is green's functions, centered at receivers
+
+}
+
+void Chamber::A2Q5(void)
 {
     auto ntx{antennas.size()};
     auto ntri{mesh.areas.size()};
@@ -431,7 +439,7 @@ void Chamber::buildAnnihilator(void)
     Ez_sct_meas.resize(ntx);
 
     if(!Ez_inc_d.size())
-    {        
+    {
         calcDataEzInc();
     }
 

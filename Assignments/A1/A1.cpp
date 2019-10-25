@@ -39,14 +39,25 @@ int main (int argc, char **argv)
     {
         outdir += "/";
     }
-    std::cerr << "Making directory for output..." << std::endl;
-    auto dir_fail{std::filesystem::create_directory(outdir)};
-
-    if(dir_fail)
+    if(std::filesystem::exists(outdir))
     {
-        std::cerr << dir_fail << std::endl;
-        std::cerr << "Failed to make directory" << std::endl;
-        assert(false);
+        std::cerr << "Directory: " << outdir << " already exists" << std::endl;
+    }
+    else
+    {
+        std::cerr << "Directory: " << outdir << " does not exist." << std::endl;
+        auto dir_success{std::filesystem::create_directory(outdir)};
+
+        if(not dir_success)
+        {
+            std::cerr << dir_success << std::endl;
+            std::cerr << "Failed to make directory" << std::endl;
+            assert(false);
+        }
+        else
+        {
+            std::cerr << "Now it does." << std::endl;
+        }
     }
 
     Eigen::MatrixXcd M_Ez_out;

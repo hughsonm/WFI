@@ -180,7 +180,8 @@ public:
     void calcDataEzInc(void);
     void calcDataEzTot(void);
     void buildDataGreen(void);
-    void buildAnnihilator(void);
+    void A2Q3(void);
+    void A2Q5(void);
     void readMeasuredData(std::string datafile);
     double frequency;
     // Eigen::VectorXcd k2_f;
