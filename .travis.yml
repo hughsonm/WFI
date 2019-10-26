@@ -14,12 +14,13 @@ script:
   - cd Assignments/A1
   - make
   - gmsh -2 -clscale 1.0 -o Ring.msh Ring.geo
-  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
+  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt" A1out
   - gmsh -2 -clscale 0.5 -o Ring.msh Ring.geo
-  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
+  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt" A1out
   - gmsh -2 -clscale 0.2 -o Ring.msh Ring.geo
-  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt"
+  - ./A1.out "Ring.msh" "Tag2EpsRel.txt" "Antennas.txt" 1e9 "ProbePositions.txt" A1out
   - cd ../A2
   - gmsh -2 -o A2Fwd.msh -clscale 1.0 A2Fwd.geo
   - gmsh -2 -o A2Inv.msh -clscale 1.0 A2Inv.geo
-  - ../A1/A2.out A2Fwd.msh Tag2EpsRelFwd.txt Antennas4A2.txt 5e9 ProbePositions4A2.txt
+  - ../A1/A1.out A2Fwd.msh Tag2EpsRelFwd.txt Antennas4A2.txt 5e9 ProbePositions4A2.txt A2Fwd
+  - A2.out A2Inv.msh Antennas4A2.txt 5e9 Probes4A2.txt A2Fwd/Ez_tot_d A2Inv

@@ -424,9 +424,44 @@ void Chamber::buildDataGreen(void)
 
 void Chamber::A2Q3(void)
 {
-  // Annihilating the Annihilator
+	// Annihilating the Annihilator
 
-  // Basis is green's functions, centered at receivers
+	// Basis is green's functions, centered at receivers
+
+	// Build a matrix H s.t. Hij is the inner product of :
+	// (g_i)* and g_j
+
+	// For this, we need a mesh, and the antennas.
+
+	Eigen::MatrixXcd H;
+	H.resize(antennas.size(),antennas.size());
+	
+	Eigen::MatrixXcd gg(mesh.centroids.rows(),antennas.size());
+	for(auto tt{0};tt<antennas.size();++tt){
+		Eigen::VectorXcd gt;
+		antennas[tt].getEz(
+		gt,
+		mesh.centroids,
+		frequency);
+		gt *= k2_b;
+		gg.col(tt) = gt;
+	}
+	
+
+	for(auto ee{0};ee<mesh.centroids.rows();++ee){
+		double area_for_ele{mesh.areas(ee)};
+		for(auto ii{0};ii<gg.cols();++ii){
+			std::complex<double> gistar_on_ele{
+				gg(ee,ii).adjoint()
+			};
+			for(auto jj{0};jj<gg.cols();++jj){
+				std::complex<double> gj_on_ele{
+					gg(ee,jj)
+				};
+				H(ii,jj) += area_for_ele*gistar_on_ele*gj_on_ele;
+			}
+		}
+	}
 
 }
 

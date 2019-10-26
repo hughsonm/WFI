@@ -87,7 +87,6 @@ public:
     Eigen::MatrixXd tri;
     Eigen::MatrixXd centroids;
     Eigen::VectorXd areas;
-
     bool ready{false};
 };
 
