@@ -462,7 +462,16 @@ void Chamber::A2Q3(void)
 			}
 		}
 	}
-
+	
+	Eigen::PartialPivLU<Eigen::MatrixXcd> H_LU;
+	H_LU.compute(H);
+	Eigen::MatrixXcd alphas(mesh.centroids.rows(),antennas.size());
+	for(auto tt{0};tt<antennas.size();++tt){
+		Eigen::VectorXcd Ezs_t;
+		Ez_sct_d.getVals(Ezs_t);
+		alphas.col(tt) = H_LU.solve(Ezs_t);
+	}
+	
 }
 
 void Chamber::A2Q5(void)
