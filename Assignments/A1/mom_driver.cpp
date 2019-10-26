@@ -472,6 +472,7 @@ void Chamber::A2Q3(void)
 		alphas.col(tt) = H_LU.solve(Ezs_t);
 	}
 	
+	
 }
 
 void Chamber::A2Q5(void)
