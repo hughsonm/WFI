@@ -6,7 +6,6 @@ before_install:
   - brew update
   - brew install gmsh
   - brew install eigen
-  - brew install octave
   - brew upgrade boost
 
 install: skip
