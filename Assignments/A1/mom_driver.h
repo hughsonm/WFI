@@ -62,14 +62,13 @@ enum AntennaStyle_t
 };
 
 
-
 class Mesh
 {
 private:
     void CalculateTriAreas();
     void CalculateTriCentroids();
-    std::string meshfilename;
 public:
+    std::string meshfilename;
     void buildTriangulation(
         std::string filename,
         bool verbose=false
@@ -101,7 +100,7 @@ public:
         locs = &set_locs;
     };
     void setVals(
-        Eigen::VectorXcd & set_vals
+        const Eigen::VectorXcd & set_vals
     ){
         vals.resize(set_vals.size());
         vals = set_vals;
@@ -113,6 +112,9 @@ public:
         dest.resize(vals.size());
         dest = vals;
     };
+    const Eigen::VectorXcd & getValRef(void){
+      return vals;
+    }
     void erase(void){
         vals.resize(locs->rows());
         vals.setOnes();
@@ -179,12 +181,22 @@ public:
     void calcDataEzInc(void);
     void calcDataEzTot(void);
     void buildDataGreen(void);
-    void A2Q3(void);
-    void A2Q5(void);
-    void readMeasuredData(std::string datafile);
+    void A2Q3(
+        Eigen::MatrixXcd & w_calc,
+        Eigen::VectorXcd & X_calc
+    );
+    void A2Q5(
+        Eigen::MatrixXcd & w_calc,
+        Eigen::MatrixXcd & u_calc,
+        Eigen::VectorXcd & X_calc
+    );
+    void readMeasuredData(
+        std::string datafile,
+        double noise_pct
+    );
     double frequency;
     // Eigen::VectorXcd k2_f;
-    std::complex<double> k2_b;
+    std::complex<double> k2_b{0.0};
     Eigen::MatrixXcd G_b_domain;
     Eigen::MatrixXcd G_b_data;
     // L = (I+G*Chi);

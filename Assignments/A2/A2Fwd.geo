@@ -3,7 +3,7 @@ cc = 3e8;
 lambda = cc/ff;
 cl = lambda / 10;
 
-target_rad = 7e-2;
+target_rad = 0.31*lambda;
 
 TARGET_TAG = 1000;
 //+

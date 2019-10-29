@@ -7,7 +7,7 @@
 CC = clang # compiler to use
 CXX = clang++
 
-CXXFLAGS = -lc++fs -std=c++17 -O3 -march=native -msse4 -ffast-math -funroll-loops -Wall
+CXXFLAGS = -std=c++17 -O2 -Wall
 LIBS = -lgmsh -lboost_math_C99
 LDFLAGS =
 
@@ -16,7 +16,7 @@ LINKERFLAG = -lm
 SRCS := $(wildcard *.cpp)
 BINS := $(SRCS:%.cpp=%)
 
-# My A1 program depends on A1.o
+# My A1 program depends on A1.o and mom_driver.o
 A2: A2.o ../A1/mom_driver.o
 	@echo "Building application A2"
 	${CXX} ${CXXFLAGS} ${LIBS} ${LDFLAGS} -o A2.out A2.o ../A1/mom_driver.o #Build A1 from its dependencies
