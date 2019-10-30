@@ -188,14 +188,15 @@ public:
     void A2Q5(
         Eigen::MatrixXcd & w_calc,
         Eigen::MatrixXcd & u_calc,
-        Eigen::VectorXcd & X_calc
+        Eigen::VectorXcd & X_calc,
+        std::vector<std::vector<Eigen::Vector2d> > & curves,
+        bool tikhonov
     );
     void readMeasuredData(
         std::string datafile,
         double noise_pct
     );
     double frequency;
-    // Eigen::VectorXcd k2_f;
     std::complex<double> k2_b{0.0};
     Eigen::MatrixXcd G_b_domain;
     Eigen::MatrixXcd G_b_data;

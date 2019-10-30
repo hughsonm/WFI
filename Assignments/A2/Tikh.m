@@ -1,33 +1,38 @@
 close all;clearvars
-EXP_RANGE = 20;
-NOISE_FACTOR = 0.1;
+EXP_RANGE = 10;
+NOISE_FACTOR = 0.2;
 
-A = ReadCppMatrixFromFile('Q1Inv/Gbd.txt');
-[M,N] = size(A);
+M = 30;N = 40;
+d = min(M,N);
+D = max(M,N);
+A = gallery('moler',D);
+A = A(1:M,1:N);
+
 Ah = A';
 AhA = A'*A;
 I = eye(size(AhA));
 
-b = ReadCppMatrixFromFile('Q1/Ez_sct_d.txt');
-b = b(:,1);
+b = cos((1:M).'/M*pi*2*3.9);
 
-b_noise_phase = rand(size(b))*2*pi - pi;
-b_noise_mags  = rand(size(b))*max(abs(b))*NOISE_FACTOR;
+% b_noise_phase = rand(size(b))*2*pi - pi;
+% b_noise_mags  = rand(size(b))*max(abs(b))*NOISE_FACTOR;
+% 
+% b_noise = b_noise_mags;.*exp(1.0j*b_noise_phase);
 
-b_noise = b_noise_mags.*exp(1.0j*b_noise_phase);
+b_noise = (rand(size(b))-0.5)*max(abs(b))*NOISE_FACTOR;
 
-b = b+b_noise;
+b_noisy = b+b_noise;
 
 if M<=N
     disp('Underdetermined');
-    x0 = Ah*((A*Ah)\b);
+    x0 = Ah*((A*Ah)\b_noisy);
 elseif M == N
-    x0 = A\b;
+    x0 = A\b_noisy;
 else
     disp('Overdetermined');
-    x0 = (AhA)\(Ah*b);
+    x0 = (AhA)\(Ah*b_noisy);
 end
-r0 = A*x0-b;
+r0 = A*x0-b_noisy;
 
 xx = [];
 yy = [];
@@ -38,11 +43,11 @@ for lambda_exp = 0:1:EXP_RANGE
     lambda_big = 10^lambda_exp;
     lambda_sml = 10^(-lambda_exp);
     
-    x_big = (AhA+lambda_big*I)\(Ah*b);
-    x_sml = (AhA+lambda_sml*I)\(Ah*b);
+    x_big = (AhA+lambda_big*I)\(Ah*b_noisy);
+    x_sml = (AhA+lambda_sml*I)\(Ah*b_noisy);
     
-    res_big = A*x_big - b;
-    res_sml = A*x_sml - b;
+    res_big = A*x_big - b_noisy;
+    res_sml = A*x_sml - b_noisy;
     xx = [log(norm(res_sml)),xx,log(norm(res_big))];
     yy = [log(norm(x_sml)),yy,log(norm(x_big))];
     ll = [lambda_sml,ll,lambda_big];
@@ -52,7 +57,7 @@ for lambda_exp = 0:1:EXP_RANGE
 %     text(log(norm(res_sml)),log(norm(x_sml)),num2str(lambda_sml));
 end
 figure();
-rightmost = log(norm(b));
+rightmost = log(norm(b_noisy));
 topmost = log(norm(x0));
 
 right_bar_x = [rightmost,rightmost];
@@ -75,6 +80,8 @@ text(xx,yy,num2str(ll.','%3.1e'));
 xlabel('log(|Ax-b|)');
 ylabel('log(|x|)');
 
+title('Typical Tikhonov Curve')
+
 
 
 
@@ -93,7 +100,7 @@ end
 [max_curve,opt_idx] = max(curve);
 
 scatter(xx(opt_idx),yy(opt_idx),'kx');
-axis image;grid on;
+% axis image;grid on;
 lambda_opt = ll(opt_idx);
 
 w_opt = (AhA + lambda_opt*I)\(Ah*b);

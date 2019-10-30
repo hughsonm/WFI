@@ -289,7 +289,7 @@ void Mesh::buildDomainGreen(
                 );
                 Gmn = -j*M_PI*a_n*J1*H02/2.0/k_b;
             }
-            // Background green's function is symmetric
+            // Background green's function is not symmetric for tris
             G(mm,nn) = Gmn;
         }
     }
@@ -546,7 +546,7 @@ void Chamber::A2Q3(
         );
         std::cerr << "Built green function operator!" << std::endl;
     }
-
+    // gg(:,k) is k2_b*G(r,r_k), where r_k are the probe locations.
 	Eigen::MatrixXcd gg(mesh.centroids.rows(),probes.size());
     std::cerr << "Building " << gg.rows() << " by " << gg.cols() << " matrix of little g fields" << std::endl;
 	for(auto pp{0};pp<probes.size();++pp){
@@ -568,42 +568,38 @@ void Chamber::A2Q3(
 		gg.col(pp) = gp;
         std::cerr << "Assigned!" << std::endl;
 	}
+    // WriteMatrixToFile(
+    //     "gg.txt",
+    //     gg
+    // );
 
-
-    Eigen::MatrixXcd H;
-	H.resize(probes.size(),probes.size());
-    // std::cerr << "Attempting to fill H(" << H.rows() << "," << H.cols() << ")" << std::endl;
-
-    Eigen::MatrixXd area_matrix(mesh.areas.size(),mesh.areas.size());
-    area_matrix.setZero();
-    for(auto aa{0}; aa<mesh.areas.size();++aa)
+    if(!G_b_data.rows() || !G_b_data.cols())
     {
-        area_matrix(aa,aa)=mesh.areas(aa);
+        std::cerr << "Annihilator needs G_b_data. Building it now..." << std::endl;
+        buildDataGreen();
     }
 
-
-    for(auto ii{0}; ii < gg.cols(); ++ii)
-    {
-        Eigen::VectorXcd Agi{
-            area_matrix*gg.col(ii)
-        };
-        for(auto jj{0}; jj< gg.cols(); jj++)
-        {
-            std::complex<double> hij{(gg.col(jj).adjoint())*Agi};
-            H(ii,jj) = hij;
-        }
-    }
-    // std::cerr << "Built H! Here it is:" << std::endl;
-    // std::cerr << H << std::endl;
+    Eigen::MatrixXcd H{
+        (k2_b)*G_b_data*(gg.conjugate())
+    };
+    // WriteMatrixToFile(
+    //     "H.txt",
+    //     H
+    // );
 
     std::cerr << "LU-decomposing H:" << std::endl;
 
-	Eigen::PartialPivLU<Eigen::MatrixXcd> H_LU(H.rows());
+	Eigen::PartialPivLU<Eigen::MatrixXcd> H_LU;
 
     H_LU.compute(H);
 
     std::cerr << "Decomposition complete! " << std::endl;
     std::cerr << "Decomp gave us a matrix of size " << H_LU.matrixLU().rows() << " by " << H_LU.matrixLU().cols() << std::endl;
+
+    // WriteMatrixToFile(
+    //     "H_LU.txt",
+    //     H_LU.matrixLU()
+    // );
 
     std::cerr << "Now let us make contrast sources..." << std::endl;
 	Eigen::MatrixXcd w_basis_coeffs(
@@ -625,7 +621,10 @@ void Chamber::A2Q3(
 
 		w_basis_coeffs.col(tt) = w;
 	}
-
+    // WriteMatrixToFile(
+    //     "a2q3_w_basis.txt",
+    //     w_basis_coeffs
+    // );
 
     Eigen::MatrixXcd w_on_eles(
         mesh.areas.size(),
@@ -649,7 +648,8 @@ void Chamber::A2Q3(
 
     for(auto tt{0}; tt<w_on_eles.cols(); ++tt)
     {
-        domain_total_fields.col(tt) = Ez_inc[tt].getValRef() + G_b_domain*w_on_eles.col(tt);
+        // My G operators map from k2_b*w to u^s
+        domain_total_fields.col(tt) = Ez_inc[tt].getValRef() + k2_b*G_b_domain*w_on_eles.col(tt);
     }
     Eigen::VectorXcd contrast(mesh.areas.size());
     for(auto kk{0}; kk<contrast.size(); ++kk)
@@ -657,10 +657,10 @@ void Chamber::A2Q3(
         std::complex<double> numerator{0},denominator{0};
         for(auto tt{0}; tt<antennas.size(); ++tt)
         {
-            std::complex<double> utk{domain_total_fields(kk,tt)};
-            std::complex<double> utkstar{std::conj(utk)};
-            numerator += utkstar*w_on_eles(kk,tt);
-            denominator += utkstar*utk;
+            std::complex<double> ukt{domain_total_fields(kk,tt)};
+            std::complex<double> uktstar{std::conj(ukt)};
+            numerator += uktstar*w_on_eles(kk,tt);
+            denominator += uktstar*ukt;
         }
         contrast(kk) = numerator/denominator;
     }
@@ -731,7 +731,9 @@ static int findTikhLeftestTurn(
 void Chamber::A2Q5(
     Eigen::MatrixXcd & w_calc,
     Eigen::MatrixXcd & u_calc,
-    Eigen::VectorXcd & X_calc
+    Eigen::VectorXcd & X_calc,
+    std::vector<std::vector<Eigen::Vector2d> > & curves,
+    bool tikhonov
 )
 {
     auto ntx{antennas.size()};
@@ -764,193 +766,216 @@ void Chamber::A2Q5(
         std::cerr << "Annihilator needs G_b_data. Building it now..." << std::endl;
         buildDataGreen();
     }
+    Eigen::MatrixXcd P{k2_b*G_b_data};
+    Eigen::MatrixXcd optimal_alphas(P.cols(),ntx);
 
-    Eigen::MatrixXcd PhP{G_b_data.adjoint()*G_b_data};
-    Eigen::MatrixXcd I{
-        Eigen::MatrixXcd::Identity(
-            PhP.rows(),PhP.cols()
-        )
-    };
-
-    std::cerr << "PhP is " << PhP.rows() << " by " << PhP.cols() << std::endl;
-
-    std::vector<bool> optimum_found_for_tx(ntx,false);
-    // std::vector<std::vector<double> > tikh_distances_for_tx(ntx);
-    std::vector<std::vector<Eigen::Vector2d> > tikh_curves(antennas.size());
-
-    Eigen::MatrixXcd Phd_all{G_b_data.adjoint()*Ez_sct_meas_mat};
-    std::vector<double> optimal_lambdas(ntx);
-
-    double lambda_exp{0.0};
-    double lambda0{std::pow(10,+lambda_exp)};
-
-    Eigen::MatrixXcd A0{PhP+lambda0*I};
-    Eigen::PartialPivLU<Eigen::MatrixXcd> LU_0;
-    LU_0.compute(A0);
-    for(auto tt{0}; tt<antennas.size(); ++tt)
+    if(tikhonov)
     {
-        Eigen::VectorXcd solution{LU_0.solve(Phd_all.col(tt))};
-        Eigen::VectorXcd residual{G_b_data*solution - Ez_sct_meas_mat.col(tt)};
+        Eigen::MatrixXcd PhP{
+            P.adjoint()*P
+        };
+        Eigen::MatrixXcd I{
+            Eigen::MatrixXcd::Identity(
+                PhP.rows(),PhP.cols()
+            )
+        };
 
-        std::complex<double> complex_sol_norm_sq{solution.adjoint()*solution};
-        std::complex<double> complex_res_norm_sq{residual.adjoint()*residual};
+        std::cerr << "PhP is " << PhP.rows() << " by " << PhP.cols() << std::endl;
 
-        double sol_norm_sq{complex_sol_norm_sq.real()};
-        double res_norm_sq{complex_res_norm_sq.real()};
+        std::vector<bool> optimum_found_for_tx(ntx,false);
+        // std::vector<std::vector<double> > tikh_distances_for_tx(ntx);
+        curves.resize(antennas.size());
 
-        double log_sol_norm{std::log(std::sqrt(sol_norm_sq))};
-        double log_res_norm{std::log(std::sqrt(res_norm_sq))};
+        Eigen::MatrixXcd Phd_all{
+            P.adjoint()*Ez_sct_meas_mat
+        };
+        std::vector<double> optimal_lambdas(ntx);
 
-        Eigen::Vector2d tikh_point;
-        tikh_point(0) = log_res_norm;
-        tikh_point(1) = log_sol_norm;
+        double lambda_exp{0.0};
+        double lambda0{std::pow(10,+lambda_exp)};
 
-        tikh_curves[tt].resize(1);
-        tikh_curves[tt][0] = tikh_point;
-        std::cerr << "Initial tikh point for tx " << tt << "is: " << std::endl;
-        std::cerr << tikh_curves[tt][0] << std::endl;
-    }
-    while(
-        !std::all_of(
-            optimum_found_for_tx.begin(),
-            optimum_found_for_tx.end(),
-            [](bool x){return x;}
-        )
-    )
-    {
-        lambda_exp++;
-        std::cerr << "lambda_exp = " << lambda_exp << std::endl;
-
-        double lambda_big{std::pow(10,+lambda_exp)};
-        double lambda_sml{std::pow(10,-lambda_exp)};
-
-        std::cerr << "big = " << lambda_big << " and small = " << lambda_sml << std::endl;
-
-        Eigen::MatrixXcd Abig=PhP+lambda_big*I;
-        Eigen::MatrixXcd Asml=PhP+lambda_sml*I;
-
-        std::cerr << "First elements of Abig, Asml:" << Abig(0,0) << "," << Asml(0,0) << std::endl;
-
-        Eigen::PartialPivLU<Eigen::MatrixXcd> LU_big;
-        Eigen::PartialPivLU<Eigen::MatrixXcd> LU_sml;
-
-        std::cerr << "Computing LU factorization of A-matrices...(" << Abig.rows() << "," << Abig.cols() << ")";
-
-        LU_big.compute(Abig);
-        std::cerr << " done 1...";
-        LU_sml.compute(Asml);
-        std::cerr << " done 2!" << std::endl;
-
-        for(int itx = 0; itx < ntx; itx++)
+        Eigen::MatrixXcd A0{PhP+lambda0*I};
+        Eigen::PartialPivLU<Eigen::MatrixXcd> LU_0;
+        LU_0.compute(A0);
+        for(auto tt{0}; tt<antennas.size(); ++tt)
         {
+            Eigen::VectorXcd solution{LU_0.solve(Phd_all.col(tt))};
+            Eigen::VectorXcd residual{P*solution - Ez_sct_meas_mat.col(tt)};
 
-            if(!optimum_found_for_tx[itx])
+            std::complex<double> complex_sol_norm_sq{solution.adjoint()*solution};
+            std::complex<double> complex_res_norm_sq{residual.adjoint()*residual};
+
+            double sol_norm_sq{complex_sol_norm_sq.real()};
+            double res_norm_sq{complex_res_norm_sq.real()};
+
+            double log_sol_norm{std::log(std::sqrt(sol_norm_sq))};
+            double log_res_norm{std::log(std::sqrt(res_norm_sq))};
+
+            Eigen::Vector2d tikh_point;
+            tikh_point(0) = log_res_norm;
+            tikh_point(1) = log_sol_norm;
+
+            curves[tt].resize(1);
+            curves[tt][0] = tikh_point;
+            std::cerr << "Initial tikh point for tx " << tt << "is: " << std::endl;
+            std::cerr << curves[tt][0] << std::endl;
+        }
+        while(
+            !std::all_of(
+                optimum_found_for_tx.begin(),
+                optimum_found_for_tx.end(),
+                [](bool x){return x;}
+            )
+        )
+        {
+            lambda_exp++;
+            std::cerr << "lambda_exp = " << lambda_exp << std::endl;
+
+            double lambda_big{std::pow(10,+lambda_exp)};
+            double lambda_sml{std::pow(10,-lambda_exp)};
+
+            std::cerr << "big = " << lambda_big << " and small = " << lambda_sml << std::endl;
+
+            Eigen::MatrixXcd Abig=PhP+lambda_big*I;
+            Eigen::MatrixXcd Asml=PhP+lambda_sml*I;
+
+            std::cerr << "First elements of Abig, Asml:" << Abig(0,0) << "," << Asml(0,0) << std::endl;
+
+            Eigen::PartialPivLU<Eigen::MatrixXcd> LU_big;
+            Eigen::PartialPivLU<Eigen::MatrixXcd> LU_sml;
+
+            std::cerr << "Computing LU factorization of A-matrices...(" << Abig.rows() << "," << Abig.cols() << ")";
+
+            LU_big.compute(Abig);
+            std::cerr << " done 1...";
+            LU_sml.compute(Asml);
+            std::cerr << " done 2!" << std::endl;
+
+            for(int itx = 0; itx < ntx; itx++)
             {
-                std::cerr << "Optimum not yet found for tx " << itx << std::endl;
-                // Solve system
-                Eigen::VectorXcd alpha_big{LU_big.solve(Phd_all.col(itx))};
-                Eigen::VectorXcd alpha_sml{LU_sml.solve(Phd_all.col(itx))};
 
-                double res_norm_big{(Ez_sct_meas_mat.col(itx)-G_b_data*alpha_big).norm()};
-                double alpha_norm_big{alpha_big.norm()};
-
-                double res_norm_sml{(Ez_sct_meas_mat.col(itx)-G_b_data*alpha_sml).norm()};
-                double alpha_norm_sml{alpha_sml.norm()};
-
-                Eigen::Vector2d tikh_point_big,tikh_point_sml;
-
-                tikh_point_big[0] = std::log(res_norm_big);
-                tikh_point_big[1] = std::log(alpha_norm_big);
-
-                tikh_point_sml[0] = std::log(res_norm_sml);
-                tikh_point_sml[1] = std::log(alpha_norm_sml);
-
-                std::cerr << "Prepending:" << std::endl;
-                std::cerr << tikh_point_sml << std::endl;
-
-                tikh_curves[itx].insert(
-                    tikh_curves[itx].begin(),
-                    tikh_point_sml
-                );
-
-                std::cerr << "Appending" << std::endl;
-                std::cerr << tikh_point_big << std::endl;
-
-                tikh_curves[itx].push_back(
-                    tikh_point_big
-                );
-
-                // Scan this curve for an optimum(scan for a peak in left-curviness)
-                int turn_index = findTikhLeftestTurn(
-                    tikh_curves[itx]
-                );
-                if(0<turn_index)
+                if(!optimum_found_for_tx[itx])
                 {
+                    std::cerr << "Optimum not yet found for tx " << itx << std::endl;
+                    // Solve system
+                    Eigen::VectorXcd alpha_big{LU_big.solve(Phd_all.col(itx))};
+                    Eigen::VectorXcd alpha_sml{LU_sml.solve(Phd_all.col(itx))};
 
-                    double lambda_opt{
-                        lambda_sml*std::pow(10,turn_index)
-                    };
-                    std::cerr << "Found optimal lambda for tx " << itx << ": " << lambda_opt << std::endl;
-                    optimal_lambdas[itx] = lambda_opt;
-                    optimum_found_for_tx[itx] = true;
+                    double res_norm_big{(Ez_sct_meas_mat.col(itx)-P*alpha_big).norm()};
+                    double alpha_norm_big{alpha_big.norm()};
+
+                    double res_norm_sml{(Ez_sct_meas_mat.col(itx)-P*alpha_sml).norm()};
+                    double alpha_norm_sml{alpha_sml.norm()};
+
+                    Eigen::Vector2d tikh_point_big,tikh_point_sml;
+
+                    tikh_point_big[0] = std::log(res_norm_big);
+                    tikh_point_big[1] = std::log(alpha_norm_big);
+
+                    tikh_point_sml[0] = std::log(res_norm_sml);
+                    tikh_point_sml[1] = std::log(alpha_norm_sml);
+
+                    std::cerr << "Prepending:" << std::endl;
+                    std::cerr << tikh_point_sml << std::endl;
+
+                    curves[itx].insert(
+                        curves[itx].begin(),
+                        tikh_point_sml
+                    );
+
+                    std::cerr << "Appending" << std::endl;
+                    std::cerr << tikh_point_big << std::endl;
+
+                    curves[itx].push_back(
+                        tikh_point_big
+                    );
+
+                    // Scan this curve for an optimum(scan for a peak in left-curviness)
+                    int turn_index = findTikhLeftestTurn(
+                        curves[itx]
+                    );
+                    if(0<turn_index)
+                    {
+
+                        double lambda_opt{
+                            lambda_sml*std::pow(10,turn_index)
+                        };
+                        std::cerr << "Found optimal lambda for tx " << itx << ": " << lambda_opt << std::endl;
+                        optimal_lambdas[itx] = lambda_opt;
+                        optimum_found_for_tx[itx] = true;
+                    }
                 }
             }
         }
-    }
 
-    for(auto cc{0}; cc<tikh_curves.size(); ++cc)
-    {
-        Eigen::MatrixXd curve_mat(2,tikh_curves[cc].size());
-        for(int pp{0}; pp<tikh_curves[cc].size();++pp)
+        std::cerr << "Moving on from lambda calc..." << std::endl;
+        // Cool, we got all of our optimal lambdas!
+        // Calculate the alphas which correspond to all these optimal
+        // values of lambda. This could possibly be done in the loops up
+        // above, but I don't want to spend the energy on that.
+        // Recalculating them here is simpler and cleaner.
+        std::vector<bool> alpha_is_calculated(optimal_lambdas.size(),false);
+        for(auto ll{0}; ll < optimal_lambdas.size(); ++ll)
         {
-            curve_mat.col(pp) = tikh_curves[cc][pp];
-        }
-        std::string outfile{"Curve"+std::to_string(cc)+".txt"};
-        WriteMatrixToFile(
-            outfile,
-            curve_mat
-        );
-    }
-    std::cerr << "Moving on from lambda calc..." << std::endl;
-    // Cool, we got all of our optimal lambdas!
-    // Calculate the alphas which correspond to all these optimal
-    // values of lambda. This could possibly be done in the loops up
-    // above, but I don't want to spend the energy on that.
-    // Recalculating them here is simpler and cleaner.
-    Eigen::MatrixXcd optimal_alphas(G_b_data.cols(),ntx);
-    std::vector<bool> alpha_is_calculated(optimal_lambdas.size(),false);
-    for(auto ll{0}; ll < optimal_lambdas.size(); ++ll)
-    {
-        if(alpha_is_calculated[ll]) continue;
-        std::cerr << "Calculating optimal alphas for tx " << ll << std::endl;
-        double lambda_opt{optimal_lambdas[ll]};
-        std::cerr << "\tOptimal lambda here is " << lambda_opt << std::endl;
-        std::cerr << "\tFactor(PhP+lambdaI)..." << std::endl;
-        Eigen::PartialPivLU<Eigen::MatrixXcd> LU_opt;
-        std::cerr << "\tInitialized" << std::endl;
-        LU_opt.compute(PhP+lambda_opt*I);
-        std::cerr << "\tFactored" << std::endl;
+            if(alpha_is_calculated[ll]) continue;
+            std::cerr << "Calculating optimal alphas for tx " << ll << std::endl;
+            double lambda_opt{optimal_lambdas[ll]};
+            std::cerr << "\tOptimal lambda here is " << lambda_opt << std::endl;
+            std::cerr << "\tFactor(PhP+lambdaI)..." << std::endl;
+            Eigen::PartialPivLU<Eigen::MatrixXcd> LU_opt;
+            std::cerr << "\tInitialized" << std::endl;
+            LU_opt.compute(PhP+lambda_opt*I);
+            std::cerr << "\tFactored" << std::endl;
 
-        for(auto ii{ll};ii<optimal_lambdas.size();++ii)
-        {
-	    // Check which alpha-systems use this lambda for regularization.
-	    bool system_uses_this_lambda{
-	        std::abs((optimal_lambdas[ii]-lambda_opt)/lambda_opt) < 0.01
-	    };
-            if(system_uses_this_lambda && !alpha_is_calculated[ii])
+            for(auto ii{ll};ii<optimal_lambdas.size();++ii)
             {
-                std::cerr << "\t\tSystem " <<ii << " also uses this lambda" << std::endl;
-                optimal_alphas.col(ii) = LU_opt.solve(Phd_all.col(ii));
-                alpha_is_calculated[ii] = true;
+    	    // Check which alpha-systems use this lambda for regularization.
+    	    bool system_uses_this_lambda{
+    	        std::abs((optimal_lambdas[ii]-lambda_opt)/lambda_opt) < 0.01
+    	    };
+                if(system_uses_this_lambda && !alpha_is_calculated[ii])
+                {
+                    std::cerr << "\t\tSystem " <<ii << " also uses this lambda" << std::endl;
+                    optimal_alphas.col(ii) = LU_opt.solve(Phd_all.col(ii));
+                    alpha_is_calculated[ii] = true;
+                }
+            }
+
+
+        }
+    }
+    else
+    {
+        if(P.rows()<P.cols())
+        {
+            Eigen::MatrixXcd Ph{P.adjoint()};
+            Eigen::MatrixXcd PPh{P*Ph};
+            Eigen::PartialPivLU<Eigen::MatrixXcd> PPh_LU;
+            PPh_LU.compute(PPh);
+            for(auto tt{0}; tt<ntx; ++tt)
+            {
+                optimal_alphas.col(tt) = Ph*(PPh_LU.solve(Ez_sct_meas_mat.col(tt)));
             }
         }
+        else
+        {
+            Eigen::MatrixXcd Phd_all{P.adjoint()*Ez_sct_meas_mat};
+            Eigen::MatrixXcd PhP{P.adjoint()*P};
+            Eigen::PartialPivLU<Eigen::MatrixXcd> PhP_LU;
+            PhP_LU.compute(PhP);
 
 
+            for(auto tt{0}; tt<ntx; ++tt)
+            {
+                optimal_alphas.col(tt) = PhP_LU.solve(Phd_all.col(tt));
+            }
+
+        }
     }
-    WriteMatrixToFile(
-        "Alphas.txt",
-        optimal_alphas
-    );
+    // WriteMatrixToFile(
+    //     "Alphas.txt",
+    //     optimal_alphas
+    // );
     // Now I have all of my alphas. These alpha_i is a vector of  the
     // basis coefficients of the source which satisfies the scattered
     // data generated by transmitter_i.
@@ -979,14 +1004,14 @@ void Chamber::A2Q5(
     {
         Eigen::VectorXcd inc_c;
         Ez_inc[cc].getVals(inc_c);
-        Ez_tot_opt.col(cc) = inc_c + G_b_domain*optimal_alphas.col(cc);
+        Ez_tot_opt.col(cc) = inc_c + k2_b*G_b_domain*optimal_alphas.col(cc);
     }
     std::cerr << "success!" << std::endl;
 
-    WriteMatrixToFile(
-        "Ez_tot_opt.txt",
-        Ez_tot_opt
-    );
+    // WriteMatrixToFile(
+    //     "Ez_tot_opt.txt",
+    //     Ez_tot_opt
+    // );
     Eigen::VectorXcd chi_opt(ntri);
     chi_opt.setZero();
 
@@ -1013,10 +1038,10 @@ void Chamber::A2Q5(
         chi_opt(ii) = numerator/denominator;
 
     }
-    WriteVectorToFile(
-        "Chi.txt",
-        chi_opt
-    );
+    // WriteVectorToFile(
+    //     "Chi.txt",
+    //     chi_opt
+    // );
     w_calc = optimal_alphas;
     u_calc = Ez_tot_opt;
     X_calc = chi_opt;

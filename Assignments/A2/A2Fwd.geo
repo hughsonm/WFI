@@ -1,9 +1,9 @@
-ff = 5e9;
+ff = 1e9;
 cc = 3e8;
 lambda = cc/ff;
 cl = lambda / 10;
 
-target_rad = 0.31*lambda;
+target_rad = 0.3*lambda;
 
 TARGET_TAG = 1000;
 //+

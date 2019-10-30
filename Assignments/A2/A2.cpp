@@ -88,25 +88,63 @@ int main(int argc, char** argv)
     img_chamber.buildDataGreen();
     std::cerr << "Gon try to build Annihilator!" << std::endl;
 
-    Eigen::MatrixXcd q5_w;
-    Eigen::MatrixXcd q5_u;
-    Eigen::VectorXcd q5_X;
+    Eigen::MatrixXcd q5_w_tikh;
+    Eigen::MatrixXcd q5_u_tikh;
+    Eigen::VectorXcd q5_X_tikh;
+    std::vector<std::vector<Eigen::Vector2d> > q5_curves;
     img_chamber.A2Q5(
-        q5_w,
-        q5_u,
-        q5_X
+        q5_w_tikh,
+        q5_u_tikh,
+        q5_X_tikh,
+        q5_curves,
+        true
+    );
+    for(auto tt{0}; tt<q5_curves.size(); ++tt)
+    {
+        Eigen::MatrixXd curve_mat(2,q5_curves[tt].size());
+        for(auto pp{0}; pp<q5_curves[tt].size(); ++pp)
+        {
+            curve_mat.col(pp) = q5_curves[tt][pp];
+        }
+        WriteMatrixToFile(
+            outdir + "q5_curve_" + std::to_string(tt) + ".txt",
+            curve_mat
+        );
+    }
+    WriteMatrixToFile(
+        outdir + "q5_w_tikh.txt",
+        q5_w_tikh
     );
     WriteMatrixToFile(
-        outdir + "q5_w.txt",
-        q5_w
-    );
-    WriteMatrixToFile(
-        outdir + "q5_u.txt",
-        q5_u
+        outdir + "q5_u_tikh.txt",
+        q5_u_tikh
     );
     WriteVectorToFile(
-        outdir + "q5_X.txt",
-        q5_X
+        outdir + "q5_X_tikh.txt",
+        q5_X_tikh
+    );
+
+    Eigen::MatrixXcd q5_w_unreg;
+    Eigen::MatrixXcd q5_u_unreg;
+    Eigen::VectorXcd q5_X_unreg;
+    img_chamber.A2Q5(
+        q5_w_unreg,
+        q5_u_unreg,
+        q5_X_unreg,
+        q5_curves,
+        false
+    );
+    WriteMatrixToFile(
+        outdir + "q5_w_unreg.txt",
+        q5_w_unreg
+    );
+    WriteMatrixToFile(
+        outdir + "q5_u_unreg.txt",
+        q5_u_unreg
+    );
+    WriteVectorToFile(
+        outdir + "q5_X_unreg.txt",
+        q5_X_unreg
     );
 
 
