@@ -246,9 +246,11 @@ for itx = 1:4:size(Ez_opt_tikh,2)
 end
 
 curve_fig = figure();
-for itx = 1:size(q5_w_tikh,2)
+ncurves = size(q5_w_tikh,2);
+for itx = 1:ncurves
     cc = ReadCppMatrixFromFile([INV_DIR 'q5_curve_' num2str(itx-1) '.txt']);
-    plot(cc(1,:),cc(2,:));
+    pp = plot(cc(1,:),cc(2,:),'LineWidth',5);
+    pp.Color(4) = 1/ncurves;
     np = size(cc,2);
     minexp = -floor(np/2);
     maxexp = floor(np/2);
