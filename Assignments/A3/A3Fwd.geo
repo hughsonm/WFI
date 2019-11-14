@@ -3,7 +3,7 @@ cc = 3e8;
 lambda = cc/ff;
 cl = lambda / 10;
 
-target_rad = 1.0*lambda;
+target_rad = 0.5*lambda;
 dx = lambda/2.0;
 dy = lambda/3.0;
 

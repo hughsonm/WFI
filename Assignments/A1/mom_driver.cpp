@@ -44,7 +44,7 @@ void Antenna::getEz(
             {
                 Eigen::Vector3cd k_vector = direction*k;
                 std::complex<double> phase = points.row(ipt)*k_vector;
-                Ez(ipt) = std::exp(j_imag*phase);
+                Ez(ipt) = std::exp(-j_imag*phase);
             }
             break;
         }

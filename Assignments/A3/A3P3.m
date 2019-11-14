@@ -52,10 +52,23 @@ end
 fclose(fid);
 
 Ez_sct_d = ReadCppMatrixFromFile([FWD_DIR '/Ez_sct_d.txt']);
+Ez_inc_d = ReadCppMatrixFromFile([FWD_DIR '/Ez_inc_d.txt']);
+Ez_tot_d = ReadCppMatrixFromFile([FWD_DIR '/Ez_tot_d.txt']);
 
 [nrx,ntx] = size(Ez_sct_d);
 assert(ntx == size(PlaneWaves,1));
 assert(nrx == size(Probes,1));
+
+probe_fig = figure();
+for tt=1:ntx
+    subplot(3,1,1);
+    plot3(Probes(:,1),Probes(:,2),abs(Ez_sct_d(:,tt)));hold on;
+    subplot(3,1,2);
+    plot3(Probes(:,1),Probes(:,2),abs(Ez_inc_d(:,tt)));hold on;
+    subplot(3,1,3);
+    plot3(Probes(:,1),Probes(:,2),abs(Ez_tot_d(:,tt)));hold on;
+end
+
 
 ChiHat_pts = zeros(0,3);
 
@@ -70,83 +83,82 @@ for tt = 1:ntx
         ss = rk/rk_dist;
         qq = aa-ss;
         cc = k2_b*(1-1.0j)*exp(-1.0j*k_b*rk_dist)/4/sqrt(pi*k_b*rk_dist);
-        kx = -qq(1)*k_b;
-        ky = -qq(2)*k_b;
+        kx = +qq(1)*k_b;
+        ky = +qq(2)*k_b;
         u_samp = Ez_sct_d(kk,tt);
+%         if(0<kx)
+%             if(0<ky)
+%                 % Top-left and bottom-right
+%                 ChiHat_pts = [ChiHat_pts;[kx,ky,u_samp/cc]];
+%                 ChiHat_pts = [ChiHat_pts;[-kx,-ky,conj(u_samp/cc)]];
+%             else
+%                 % Bottom-left, ignore.
+%             end
+%         else
+%             if(0<=ky)
+%                 % Top-right and bottom-left
+%                 ChiHat_pts = [ChiHat_pts;[kx,ky,u_samp/cc]];
+%                 ChiHat_pts = [ChiHat_pts;[-kx,-ky,conj(u_samp/cc)]];
+%             else
+%                 % Bottom-right, ignore
+%                 
+%             end
+%         end
         ChiHat_pts = [ChiHat_pts;[kx,ky,u_samp/cc]];
     end
+    
 end
+ChiHat_full_tri = delaunay(ChiHat_pts(:,1:2));
 figure(ChiHat_fig);
-hold off;
-scatter3(ChiHat_pts(:,1),ChiHat_pts(:,2),real(ChiHat_pts(:,3)));
-hold on;
-scatter3(ChiHat_pts(:,1),ChiHat_pts(:,2),imag(ChiHat_pts(:,3)));
-hold off;
+subplot(2,1,1);
+trisurf(ChiHat_full_tri,ChiHat_pts(:,1),ChiHat_pts(:,2),real(ChiHat_pts(:,3)));
+colorbar;
 xlabel('k_x');
 ylabel('k_y');
-legend('\Real[\chi]','\Imag[\chi]');
+subplot(2,1,2);
+trisurf(ChiHat_full_tri,ChiHat_pts(:,1),ChiHat_pts(:,2),imag(ChiHat_pts(:,3)));
+colorbar;
+xlabel('k_x');
+ylabel('k_y');
 drawnow;
 
-
-ChiHat_interpolant = scatteredInterpolant(...
-    ChiHat_pts(:,1),...
-    ChiHat_pts(:,2),...
-    ChiHat_pts(:,3),...
-    'natural',...
-    'none');
 %%
-RESOLUTION = WAVELENGTH/2;
-XY_MAX = WAVELENGTH*2;
+K_RADIUS = k_b*3;
 
-RESOLUTION_LIMIT = pi/sqrt(2)/k_b;
-if(RESOLUTION < RESOLUTION_LIMIT)
-    warning('Requested resolution will lead to numerical abnormalities');
-    input('<Enter> to continue\n','s');
-end
+ChiHat_rad = sqrt(sum(ChiHat_pts(:,1:2).^2,2));
 
-KXY_BOUND = pi/RESOLUTION;
-dxy = pi/KXY_BOUND;
-KXY_NPTS = 1+ceil(2*XY_MAX/dxy);
+ChiHat_pts_restricted = ChiHat_pts(ChiHat_rad<K_RADIUS,:);
 
+tri_hat = delaunay(ChiHat_pts_restricted(:,1:2));
 
+DOM_SIZE = 4*WAVELENGTH;
+DOM_NP = 50;
 
-kx_vec = linspace(-KXY_BOUND,KXY_BOUND,KXY_NPTS);
-ky_vec = linspace(-KXY_BOUND,KXY_BOUND,KXY_NPTS);
+[dom_x,dom_y] = meshgrid(...
+    linspace(-DOM_SIZE/2,DOM_SIZE/2,DOM_NP),...
+    linspace(-DOM_SIZE/2,DOM_SIZE/2,DOM_NP));
+dom_x = dom_x(:);
+dom_y = dom_y(:);
 
-[KX,KY] = meshgrid(kx_vec,ky_vec);
-ChiHat = zeros(KXY_NPTS,KXY_NPTS);
+tri_chi = delaunay(dom_x,dom_y);
+dom_x = dom_x + DOM_SIZE/DOM_NP/4*(rand(length(dom_x),1)-0.5);
+dom_y = dom_y + DOM_SIZE/DOM_NP/4*(rand(length(dom_y),1)-0.5);
 
-ChiHat(:) = ChiHat_interpolant(KX(:),KY(:));
-ChiHat(isnan(ChiHat)) = 0;
-figure();
-subplot(2,1,1)
-imagesc([min(kx_vec),max(kx_vec)],...
-    [min(ky_vec),max(ky_vec)],...
-    real(ChiHat));
-colorbar;
-subplot(2,1,2);
-imagesc([min(kx_vec),max(kx_vec)],...
-    [min(ky_vec),max(ky_vec)],...
-    imag(ChiHat));colorbar;
-
-Chi = ifft(ifftshift(ChiHat));
-
-fprintf('Spatial Resolution:\t%e lambda\n',dxy/WAVELENGTH);
-xy_bound = abs(KXY_NPTS-1)*dxy/2;
+dom_chi(:) = TIFT(...
+    tri_hat,...
+    ChiHat_pts_restricted(:,1:2),...
+    ChiHat_pts_restricted(:,3),...
+    [dom_x,dom_y]);
 
 
 figure();
 subplot(2,1,1);
-imagesc([-xy_bound,xy_bound]/WAVELENGTH,...
-    [-xy_bound,xy_bound]/WAVELENGTH,...
-    real(Chi));
+trisurf(tri_chi,dom_x,dom_y,real(dom_chi));
+view(2);
 colorbar;
-xlabel('x/\lambda');
-ylabel('y/\lambda');
+axis image;
 subplot(2,1,2);
-imagesc([-xy_bound,xy_bound]/WAVELENGTH,...
-    [-xy_bound,xy_bound]/WAVELENGTH,...
-    imag(Chi));
+trisurf(tri_chi,dom_x,dom_y,imag(dom_chi));
+view(2);
 colorbar;
-xlabel('x/\lambda');
-ylabel('y/\lambda');
+axis image;
