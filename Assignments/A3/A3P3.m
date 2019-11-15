@@ -61,11 +61,11 @@ assert(nrx == size(Probes,1));
 
 probe_fig = figure();
 for tt=1:ntx
-    subplot(3,1,1);
+    subplot(1,3,1);
     plot3(Probes(:,1),Probes(:,2),abs(Ez_sct_d(:,tt)));hold on;
-    subplot(3,1,2);
+    subplot(1,3,2);
     plot3(Probes(:,1),Probes(:,2),abs(Ez_inc_d(:,tt)));hold on;
-    subplot(3,1,3);
+    subplot(1,3,3);
     plot3(Probes(:,1),Probes(:,2),abs(Ez_tot_d(:,tt)));hold on;
 end
 
@@ -109,17 +109,26 @@ for tt = 1:ntx
     
 end
 ChiHat_full_tri = delaunay(ChiHat_pts(:,1:2));
-figure(ChiHat_fig);
-subplot(2,1,1);
-trisurf(ChiHat_full_tri,ChiHat_pts(:,1),ChiHat_pts(:,2),real(ChiHat_pts(:,3)));
+
+ChiHatFig = figure(ChiHat_fig);
+subplot(1,2,1);
+trisurf(ChiHat_full_tri,...
+    ChiHat_pts(:,1),...
+    ChiHat_pts(:,2),...
+    real(ChiHat_pts(:,3)));
 colorbar;
 xlabel('k_x');
 ylabel('k_y');
-subplot(2,1,2);
-trisurf(ChiHat_full_tri,ChiHat_pts(:,1),ChiHat_pts(:,2),imag(ChiHat_pts(:,3)));
+title('Real[F.T. of \chi]');
+subplot(1,2,2);
+trisurf(ChiHat_full_tri,...
+    ChiHat_pts(:,1),...
+    ChiHat_pts(:,2),...
+    imag(ChiHat_pts(:,3)));
 colorbar;
 xlabel('k_x');
 ylabel('k_y');
+title('Imag[F.T. of \chi]');
 drawnow;
 
 %%
@@ -151,14 +160,20 @@ dom_chi(:) = TIFT(...
     [dom_x,dom_y]);
 
 
-figure();
-subplot(2,1,1);
+ChiFig = figure();
+subplot(1,2,1);
 trisurf(tri_chi,dom_x,dom_y,real(dom_chi));
+xlabel('x');
+ylabel('y');
+title('Real[\chi]');
 view(2);
 colorbar;
 axis image;
-subplot(2,1,2);
+subplot(1,2,2);
 trisurf(tri_chi,dom_x,dom_y,imag(dom_chi));
+xlabel('x');
+ylabel('y');
+title('Imag[\chi]');
 view(2);
 colorbar;
 axis image;

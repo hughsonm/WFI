@@ -35,12 +35,11 @@ for ii = 1:size(tri,1)
     J = abs(vv(1)*uu(2)-vv(2)*uu(1));
     xhi = mean(xhat(tt));
     
-    
     qdr = qq*(rr.');
     udr = uu*(rr.');
     vdr = vv*(rr.');
-    umvdr = (uu-vv)*(rr.');    
-    
+    umvdr = (uu-vv)*(rr.');
+        
     x_comp = J*xhi*exp(1j*qdr)/1j./vdr.*(...
         (exp(1j*udr)-exp(1j*vdr))./(1j*umvdr)- ...
         (exp(1j*udr)-1)./(1j*udr));
