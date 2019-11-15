@@ -6,6 +6,8 @@
 *.out
 *.o
 *.pdf
+*.png
+*.jpg
 **/Notes
 *~
 *tri_pts*

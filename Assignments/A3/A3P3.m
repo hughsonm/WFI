@@ -2,8 +2,8 @@ close all;
 clearvars;
 
 FWD_DIR = 'FwdData_A3';
-ANTENNA_FILENAME = 'Antennas4A3.txt';
-PROBE_FILENAME = 'ProbePositions4A3.txt';
+ANTENNA_FILENAME = [FWD_DIR '/Antennas4A3.txt'];
+PROBE_FILENAME = [FWD_DIR '/ProbePositions4A3.txt'];
 FREQ = 1e9;
 OMEGA = 2*pi*FREQ;
 C_0 = 2.9979e8;
@@ -140,8 +140,8 @@ ChiHat_pts_restricted = ChiHat_pts(ChiHat_rad<K_RADIUS,:);
 
 tri_hat = delaunay(ChiHat_pts_restricted(:,1:2));
 
-DOM_SIZE = 4*WAVELENGTH;
-DOM_NP = 50;
+DOM_SIZE = 1.2;
+DOM_NP = 120;
 
 [dom_x,dom_y] = meshgrid(...
     linspace(-DOM_SIZE/2,DOM_SIZE/2,DOM_NP),...
@@ -177,3 +177,10 @@ title('Imag[\chi]');
 view(2);
 colorbar;
 axis image;
+
+
+saveas(ChiHatFig,[FWD_DIR '/ChiHat.png']);
+saveas(ChiFig, [FWD_DIR '/Chi.png']);
+% [ff,pp] = PlotForwardSolve(FWD_DIR);
+% saveas(ff,[FWD_DIR '/FwdFields.png']);
+% saveas(pp,[FWD_DIR '/Probes.png']);

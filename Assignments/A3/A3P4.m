@@ -42,7 +42,7 @@ for kk = 1:ntx
     for ff = 1:nfreq
         freq = frequencies(ff);
         k_f = 2*pi*freq/C_0;
-        cc = 1j*k_f*exp(-1j*2*k_f*rk_norm)/128/pi/rk_norm;
+        cc = -1j*k_f*exp(-1j*2*k_f*rk_norm)/8/pi/rk_norm;
         kx = -2*k_f*ss(1);
         ky = -2*k_f*ss(2);
         u_sample = u_scat(kk,ff);
@@ -55,11 +55,11 @@ ChiHatTri = delaunay(ChiHatPts(:,1:2));
 ChiHatTriX = 0*ChiHatTri;ChiHatTriX(:) = ChiHatPts(ChiHatTri(:),1);
 ChiHatTriY = 0*ChiHatTri;ChiHatTriY(:) = ChiHatPts(ChiHatTri(:),2);
 ChiHatTriRad = sqrt(sum([mean(ChiHatTriX,2),mean(ChiHatTriY,2)].^2,2));
-ChiHatTriMsk = MIN_K_RAD < ChiHatTriRad & ChiHatTriRad < MAX_K_RAD/2; 
+ChiHatTriMsk = MIN_K_RAD < ChiHatTriRad & ChiHatTriRad < MAX_K_RAD/1; 
 ChiHatTri = ChiHatTri(ChiHatTriMsk,:);
 
-DOM_SIZE = 20e-2;
-DOM_NP = 400;
+DOM_SIZE = 28e-2;
+DOM_NP = 200;
 
 [dom_x,dom_y] = meshgrid(...
     linspace(-DOM_SIZE/2,DOM_SIZE/2,DOM_NP),...
@@ -74,20 +74,26 @@ dom_y = dom_y + DOM_SIZE/DOM_NP/4*(rand(length(dom_y),1)-0.5);
 dom_chi = TIFT(ChiHatTri,ChiHatPts(:,1:2),ChiHatPts(:,3),[dom_x,dom_y]);
 dom_cc = C_0./(sqrt(1+dom_chi));
 
-figure();
+P4_fig = figure();
 subplot(2,2,1);
 trisurf(ChiHatTri,ChiHatPts(:,1),ChiHatPts(:,2),real(ChiHatPts(:,3)),...
     'LineStyle','None');
-view(2);colorbar;
+view(2);colorbar;axis equal;
+xlabel('k_x');ylabel('k_y');title('Real of F.T. of \chi');
 subplot(2,2,2);
 trisurf(ChiHatTri,ChiHatPts(:,1),ChiHatPts(:,2),imag(ChiHatPts(:,3)),...
     'LineStyle','None');
-view(2);colorbar;
+view(2);colorbar;axis equal;
+xlabel('k_x');ylabel('k_y');title('Imag of F.T. of \chi');
 subplot(2,2,3);
 trisurf(dom_tri,dom_x,dom_y,real(dom_cc),...
     'LineStyle','None');
-view(2);colorbar;
+view(2);colorbar;axis equal;
+xlabel('k_x');ylabel('k_y');title('Real Sound Speed');
 subplot(2,2,4);
 trisurf(dom_tri,dom_x,dom_y,imag(dom_cc),...
     'LineStyle','None');
-view(2);colorbar;
+view(2);colorbar;axis equal;
+xlabel('k_x');ylabel('k_y');title('Imag Sound Speed');
+
+saveas(P4_fig,'Report/figs/P4.png');
