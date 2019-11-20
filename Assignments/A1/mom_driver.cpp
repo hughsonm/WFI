@@ -1,4 +1,9 @@
-#include <eigen3/Eigen/Eigen>
+#define EPSNAUGHT 8.8541848128E-12
+#define MUNAUGHT 1.25663706212E-6
+#define CNAUGHT 299792508.7882675
+
+#include "mom_driver.h"
+
 #include <gmsh.h>
 #include <stdlib.h>
 #include <iostream>
@@ -6,8 +11,65 @@
 #include <algorithm>
 #include <complex>
 #include <cmath>
+#include <eigen3/Eigen/Eigen>
 #include <boost/math/special_functions/hankel.hpp>
-#include "mom_driver.h"
+#include <delaunator.hpp>
+
+
+static void delaunay(
+    Eigen::MatrixXi & tri,
+    const Eigen::MatrixXd & pts
+){
+    assert(pts.cols()==2);
+    std::vector<double> coordinates;
+    for(auto rr{0}; rr<pts.rows(); ++rr){
+        coordinates.push_back(pts(rr,0));
+        coordinates.push_back(pts(rr,1));
+    }
+    delaunator::Delaunator del(coordinates);
+    const auto ntri {del.triangles.size()/3};
+    assert(ntri*3 == del.triangles.size());
+    tri.resize(ntri,3);
+    for(auto tt{0};tt<ntri;++tt){
+        for(auto pp{0}; pp<3; ++pp){
+            tri(tt,pp) = del.triangles[3*tt+pp];
+        }
+    }
+}
+
+static void tift(
+    Eigen::VectorXcd xx,
+    const Eigen::MatrixXi& tri,
+    const Eigen::MatrixXd& xhatpts,
+    const Eigen::MatrixXcd& xhat,
+    const Eigen::MatrixXd& xpts
+)
+{
+    xx.resize(xpts.rows());
+    std::complex<double> j_imag(0,1);
+    xx.setZero();
+    for(auto tt{0}; tt<tri.rows();++tt){
+        const Eigen::VectorXd pp{xhatpts.row(tri(tt,0))};
+        const Eigen::VectorXd vv{xhatpts.row(tri(tt,1))-pp};
+        const Eigen::VectorXd uu{xhatpts.row(tri(tt,2))-pp};
+        const auto J{std::abs(vv(0)*uu(1)-vv(1)*uu(0))};
+        for(auto ii{0}; ii<xpts.rows(); ++ii){
+            const Eigen::VectorXd rr{xpts.row(ii)};
+            const auto pdr{pp.dot(rr)};
+            const auto udr{uu.dot(rr)};
+            const auto vdr{vv.dot(rr)};
+            const auto umvdr{udr-vdr};
+            auto gg{
+                (std::exp(j_imag*udr)-std::exp(j_imag*vdr))/
+                (j_imag*umvdr)
+            };
+            gg -= (std::exp(j_imag*udr)-1.0)/(j_imag*udr);
+            gg *= J*xhat(tt)*std::exp(j_imag*pdr);
+            gg /= (j_imag*vdr);
+            xx(ii) += gg;
+        }
+    }
+}
 
 void Antenna::getEz(
     Eigen::VectorXcd & Ez,
@@ -301,16 +363,100 @@ Chamber::Chamber(std::string meshfile)
     mesh.buildTriangulation(meshfile);
 
     // Set the target to be zero contrast.
-
     target.eps_r.setLocations(mesh.centroids);
-
     target.eps_r.erase();
     target.ready = true;
+}
 
-    // target.eps_r.resize(mesh.areas.size());
-    // for(int rr = 0; rr<eps_r.size();++rr) eps_r(rr) = 1.0;
-    // k2_b = 0;
-    // k2_f = eps_r*k2_b;
+void Chamber::A3P3(
+    Eigen::MatrixXcd& chi
+){
+    // Check for a mesh
+    if(not(mesh.ready)){
+        std::cerr << "Build a mesh before calling A3P3\n";
+        assert(false);
+    }
+
+    // Check for antennas.
+    if(not antennas.size()){
+        std::cerr << "Set up antennas before calling A3P3\n";
+        assert(false);
+    }
+    // Check for probes.
+    if(not probes.size()){
+        std::cerr << "Set up probes before calling A3P3\n";
+        assert(false);
+    }
+
+    // Check for scattered data at probes
+    if(not(Ez_sct_d.size()==antennas.size())){
+        std::cerr << "Supplied scattered data have wrong number of tx\n";
+        std::cerr << "Read measured data before calling A3P3\n";
+        assert(false);
+    }
+    bool all_fields_correct_size{true};
+    for(auto& ff : Ez_sct_d){
+        all_fields_correct_size &= (ff.getValRef().size()==probes.size());
+    }
+    if(not(all_fields_correct_size)){
+        std::cerr << "Supplied field data do not match number of probes\n";
+        assert(false);
+    }
+
+    auto ntx = antennas.size();
+    auto nrx = probes.size();
+
+    assert(1e-10 < std::abs(k2_b));
+
+    double k_b{(std::sqrt(k2_b)).real()};
+
+    Eigen::MatrixXd chi_hat_loc(nrx*ntx,2);
+    Eigen::VectorXcd chi_hat_val(nrx*ntx);
+    auto chi_hat_ptr{0};
+
+    std::complex<double> j_imag(0,1);
+    for(auto tt{0}; tt<antennas.size(); ++tt){
+        Eigen::Vector3d aa{antennas[tt].direction};
+        aa /= aa.norm();
+        const Eigen::VectorXcd & field_vals_for_tx{Ez_sct_d[tt].getValRef()};
+        for(auto pp{0}; pp<probes.size(); ++pp){
+            const Eigen::Vector3d rp{probes[pp].location};
+            const auto rp_dist{rp.norm()};
+            const Eigen::Vector3d ss{rp/rp_dist};
+            const auto qq{aa-ss};
+            const auto cc{
+                k2_b*
+                (1.0-j_imag)*
+                std::exp(-j_imag*k_b*rp_dist)/
+                4.0/
+                std::sqrt(M_PI*k_b*rp_dist)
+            };
+            const auto kx{qq(0)*k_b};
+            const auto ky{qq(1)*k_b};
+            const auto & measurement{field_vals_for_tx(pp)};
+            chi_hat_loc(chi_hat_ptr,0)=kx;
+            chi_hat_loc(chi_hat_ptr,1)=ky;
+            chi_hat_val(chi_hat_ptr) = measurement/cc;
+        }
+    }
+
+    Eigen::MatrixXi tri;
+    delaunay(
+        tri,
+        chi_hat_loc
+    );
+    Eigen::VectorXcd xx;
+    tift(
+        xx,
+        tri,
+        chi_hat_loc,
+        chi_hat_val,
+        mesh.centroids
+    );
+
+
+
+    std::cout << "Hello\n";
 }
 
 void Chamber::setTarget(std::string targetfile)
@@ -1246,28 +1392,15 @@ void Chamber::calcDataEzTot(void)
             k2_b,
             probe_points
         );
-        // G_b_data_ready = true;
     }
     std::cerr << "Resizing d-field holders to ";
     std::cerr << probe_points.rows() << " by ";
     std::cerr << antennas.size() << std::endl;
 
-    // Ez_inc_d.resize(probe_points.rows(),antennas.size());
     calcDataEzInc();
     Ez_sct_d.resize(antennas.size());
     Ez_tot_d.resize(antennas.size());
 
-    // for(int aa = 0; aa < antennas.size(); aa++)
-    // {
-    //     std::cerr << "Calculating d-inc for antenna ";
-    //     std::cerr << aa << std::endl;
-    //     Eigen::VectorXcd Ez_inc_a;
-    //     antennas[aa].getField(
-    //         Ez_inc_a,
-    //         probe_points
-    //     );
-    //     Ez_inc_d.col(aa) = Ez_inc_a;
-    // }
     for(int tt = 0; tt < Ez_tot.size(); tt++)
     {
         std::cerr << "Calculating d-sct for antenna ";

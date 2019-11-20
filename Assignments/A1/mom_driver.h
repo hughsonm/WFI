@@ -1,10 +1,6 @@
 #ifndef MOM_DRIVER_H
 #define MOM_DRIVER_H
-
-#define EPSNAUGHT 8.8541848128E-12
-#define MUNAUGHT 1.25663706212E-6
-#define CNAUGHT 299792508.7882675
-
+#include <eigen3/Eigen/Eigen>
 void WriteMatrixToFile(
     std::string filename,
     const Eigen::MatrixXcd & matrix,
@@ -50,8 +46,6 @@ void ReadVectorFromFile(
     std::string filename,
     Eigen::VectorXd & vec
 );
-
-
 
 
 enum AntennaStyle_t
@@ -191,6 +185,9 @@ public:
         Eigen::VectorXcd & X_calc,
         std::vector<std::vector<Eigen::Vector2d> > & curves,
         bool tikhonov
+    );
+    void A3P3(
+        Eigen::MatrixXcd& chi
     );
     void readMeasuredData(
         std::string datafile,
