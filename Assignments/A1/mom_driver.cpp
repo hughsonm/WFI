@@ -390,8 +390,18 @@ void Chamber::A3P3(
 
     // Check for scattered data at probes
     if(not(Ez_sct_d.size()==antennas.size())){
-        std::cerr << "Supplied scattered data have wrong number of tx\n";
-        std::cerr << "Read measured data before calling A3P3\n";
+        if(not(Ez_tot_d.size()==antennas.size())){
+            std::cerr << "Supplied scattered data have wrong number of tx\n";
+            std::cerr << "Read measured data before calling A3P3\n";
+        } else{
+            calcDataEzInc();
+            Ez_sct_d.resize(Ez_tot_d.size());
+            for(auto ii{0}; ii<Ez_tot_d.size(); ++ii){
+                Ez_sct_d[ii].setVals(
+                    Ez_tot_d[ii].getValRef()-Ez_inc_d[ii].getValRef()
+                );
+            }
+        }
         assert(false);
     }
     bool all_fields_correct_size{true};
