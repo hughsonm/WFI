@@ -38,6 +38,14 @@ int main(int argc, char** argv){
     img_chamber.setupAntennas(antennafile);
     img_chamber.setupProbes(probefile);
     img_chamber.readMeasuredData(datatotalfile,10);
+
+    Eigen::MatrixXcd chi;
+
+    img_chamber.A3P3(
+        chi
+    );
+
+
     gmsh::finalize();
     return(0);
 }
