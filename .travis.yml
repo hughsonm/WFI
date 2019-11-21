@@ -26,3 +26,7 @@ script:
   - gmsh -2 -o A2Inv.msh -clscale 1.0 A2Inv.geo
   - ../A1/A1.out A2Fwd.msh Tag2EpsRelFwd.txt Antennas4A2_10Tx.txt 5e9 ProbePositions4A2_40Rx.txt A2Fwd
   - A2.out A2Inv.msh Antennas4A2_10Tx.txt 5e9 ProbePositions4A2_40Rx.txt A2Fwd/Ez_tot_d.txt A2Inv
+  - git clone https://github.com/delfrrr/delaunator-cpp.git
+  - cd delaunator-cpp
+  - make
+  - ln ./include/delaunator.hpp /usr/local/include/delaunator.hpp
