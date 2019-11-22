@@ -38,10 +38,10 @@ static void delaunay(
 }
 
 static void tift(
-    Eigen::VectorXcd xx,
+    Eigen::VectorXcd& xx,
     const Eigen::MatrixXi& tri,
     const Eigen::MatrixXd& xhatpts,
-    const Eigen::MatrixXcd& xhat,
+    const Eigen::VectorXcd& xhat,
     const Eigen::MatrixXd& xpts
 )
 {
@@ -50,9 +50,16 @@ static void tift(
     xx.setZero();
     for(auto tt{0}; tt<tri.rows();++tt){
         const Eigen::VectorXd pp{xhatpts.row(tri(tt,0))};
-        const Eigen::VectorXd vv{xhatpts.row(tri(tt,1))-pp};
-        const Eigen::VectorXd uu{xhatpts.row(tri(tt,2))-pp};
+        const Eigen::VectorXd vv{xhatpts.row(tri(tt,1))-pp.transpose()};
+        const Eigen::VectorXd uu{xhatpts.row(tri(tt,2))-pp.transpose()};
         const auto J{std::abs(vv(0)*uu(1)-vv(1)*uu(0))};
+        std::complex<double> chi_hat_on_tri(0.0,0.0);
+        for(auto index{0};index < 3; ++index){
+            auto chi_hat_index{tri(tt,index)};
+            chi_hat_on_tri += xhat(chi_hat_index);
+
+        }
+        chi_hat_on_tri /= 3.0;
         for(auto ii{0}; ii<xpts.rows(); ++ii){
             const Eigen::VectorXd rr{xpts.row(ii)};
             const auto pdr{pp.dot(rr)};
@@ -64,11 +71,12 @@ static void tift(
                 (j_imag*umvdr)
             };
             gg -= (std::exp(j_imag*udr)-1.0)/(j_imag*udr);
-            gg *= J*xhat(tt)*std::exp(j_imag*pdr);
+            gg *= J*chi_hat_on_tri*std::exp(j_imag*pdr);
             gg /= (j_imag*vdr);
             xx(ii) += gg;
         }
     }
+    xx /= (2*M_PI)*(2*M_PI);
 }
 
 void Antenna::getEz(
@@ -369,7 +377,9 @@ Chamber::Chamber(std::string meshfile)
 }
 
 void Chamber::A3P3(
-    Eigen::MatrixXcd& chi
+    Eigen::MatrixXd& kpts,
+    Eigen::VectorXcd& kvals,
+    Eigen::VectorXcd& chi
 ){
     // Check for a mesh
     if(not(mesh.ready)){
@@ -389,23 +399,44 @@ void Chamber::A3P3(
     }
 
     // Check for scattered data at probes
-    if(not(Ez_sct_d.size()==antennas.size())){
-        if(not(Ez_tot_d.size()==antennas.size())){
-            std::cerr << "Supplied scattered data have wrong number of tx\n";
-            std::cerr << "Read measured data before calling A3P3\n";
+    if(not(Ez_sct_meas.size()==antennas.size())){
+        if(not(Ez_tot_meas.size()==antennas.size())){
+            std::cerr << "Supplied scattered data have " << Ez_tot_meas.size() << " transmitters.\n";
+            std::cerr << "I have "<<antennas.size() << " antennas\n";
+            std::cerr << "Read measured data before calling A3P3 please?\n";
         } else{
             calcDataEzInc();
-            Ez_sct_d.resize(Ez_tot_d.size());
-            for(auto ii{0}; ii<Ez_tot_d.size(); ++ii){
-                Ez_sct_d[ii].setVals(
-                    Ez_tot_d[ii].getValRef()-Ez_inc_d[ii].getValRef()
+            Ez_sct_meas.resize(Ez_tot_meas.size());
+            for(auto ii{0}; ii<Ez_tot_meas.size(); ++ii){
+                Ez_sct_meas[ii].setVals(
+                    Ez_tot_meas[ii].getValRef()-Ez_inc_d[ii].getValRef()
                 );
             }
         }
-        assert(false);
     }
+    // int count;
+    //
+    // count = 0;
+    // for(auto& field : Ez_tot_meas){
+    //     std::cout << "Total " << count++ << "\n";
+    //     std::cout << field.getValRef().transpose() << "\n\n\n";
+    // }
+    //
+    // count = 0;
+    // for(auto& field : Ez_inc_d){
+    //     std::cout << "Incident " << count++ << "\n";
+    //     std::cout << field.getValRef().transpose() << "\n\n\n";
+    // }
+    //
+    // count = 0;
+    // for(auto& field : Ez_sct_meas){
+    //     std::cout << "Scattered " << count++ << "\n";
+    //     std::cout << field.getValRef().transpose() << "\n\n\n";
+    // }
+    //
+
     bool all_fields_correct_size{true};
-    for(auto& ff : Ez_sct_d){
+    for(auto& ff : Ez_sct_meas){
         all_fields_correct_size &= (ff.getValRef().size()==probes.size());
     }
     if(not(all_fields_correct_size)){
@@ -420,20 +451,20 @@ void Chamber::A3P3(
 
     double k_b{(std::sqrt(k2_b)).real()};
 
-    Eigen::MatrixXd chi_hat_loc(nrx*ntx,2);
-    Eigen::VectorXcd chi_hat_val(nrx*ntx);
+    kpts.resize(nrx*ntx,2);
+    kvals.resize(nrx*ntx);
     auto chi_hat_ptr{0};
 
     std::complex<double> j_imag(0,1);
     for(auto tt{0}; tt<antennas.size(); ++tt){
         Eigen::Vector3d aa{antennas[tt].direction};
         aa /= aa.norm();
-        const Eigen::VectorXcd & field_vals_for_tx{Ez_sct_d[tt].getValRef()};
+        const Eigen::VectorXcd & field_vals_for_tx{Ez_sct_meas[tt].getValRef()};
         for(auto pp{0}; pp<probes.size(); ++pp){
             const Eigen::Vector3d rp{probes[pp].location};
             const auto rp_dist{rp.norm()};
             const Eigen::Vector3d ss{rp/rp_dist};
-            const auto qq{aa-ss};
+            const Eigen::Vector3d qq{aa-ss};
             const auto cc{
                 k2_b*
                 (1.0-j_imag)*
@@ -443,30 +474,28 @@ void Chamber::A3P3(
             };
             const auto kx{qq(0)*k_b};
             const auto ky{qq(1)*k_b};
-            const auto & measurement{field_vals_for_tx(pp)};
-            chi_hat_loc(chi_hat_ptr,0)=kx;
-            chi_hat_loc(chi_hat_ptr,1)=ky;
-            chi_hat_val(chi_hat_ptr) = measurement/cc;
+            const auto kz{field_vals_for_tx(pp)/cc};
+            kpts(chi_hat_ptr,0)=kx;
+            kpts(chi_hat_ptr,1)=ky;
+            kvals(chi_hat_ptr++) = kz;
         }
     }
 
     Eigen::MatrixXi tri;
     delaunay(
         tri,
-        chi_hat_loc
+        kpts
     );
-    Eigen::VectorXcd xx;
     tift(
-        xx,
+        chi,
         tri,
-        chi_hat_loc,
-        chi_hat_val,
-        mesh.centroids
+        kpts,
+        kvals,
+        mesh.centroids.block(
+            0,0,
+            mesh.centroids.rows(),2
+        )
     );
-
-
-
-    std::cout << "Hello\n";
 }
 
 void Chamber::setTarget(std::string targetfile)
@@ -1289,16 +1318,14 @@ void Chamber::calcDataEzInc(void)
     Ez_inc_d.resize(antennas.size());
     for(auto aa{0}; aa<antennas.size(); ++aa)
     {
-        Field field_from_antenna_at_probes;
         Eigen::VectorXcd ez_from_antenna_at_probes;
         antennas[aa].getEz(
             ez_from_antenna_at_probes,
             probe_points,
             frequency
         );
-        field_from_antenna_at_probes.setLocations(probe_points);
-        field_from_antenna_at_probes.setVals(ez_from_antenna_at_probes);
-        Ez_inc_d[aa] = field_from_antenna_at_probes;
+        Ez_inc_d[aa].setLocations(probe_points);
+        Ez_inc_d[aa].setVals(ez_from_antenna_at_probes);
     }
 }
 

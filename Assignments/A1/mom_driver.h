@@ -187,7 +187,9 @@ public:
         bool tikhonov
     );
     void A3P3(
-        Eigen::MatrixXcd& chi
+        Eigen::MatrixXd& kpts,
+        Eigen::VectorXcd& kvals,
+        Eigen::VectorXcd& chi
     );
     void readMeasuredData(
         std::string datafile,

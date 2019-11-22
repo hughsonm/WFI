@@ -136,7 +136,7 @@ K_RADIUS = k_b*3;
 
 ChiHat_rad = sqrt(sum(ChiHat_pts(:,1:2).^2,2));
 
-ChiHat_pts_restricted = ChiHat_pts(ChiHat_rad<K_RADIUS,:);
+ChiHat_pts_restricted = ChiHat_pts(ChiHat_rad<(K_RADIUS*2),:);
 
 tri_hat = delaunay(ChiHat_pts_restricted(:,1:2));
 
