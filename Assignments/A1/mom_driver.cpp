@@ -498,6 +498,12 @@ void Chamber::A3P3(
     );
 }
 
+void Chamber::A3P4(
+    std::string freqfile
+){
+    std::cout << "A3P4\n";
+}
+
 void Chamber::setTarget(std::string targetfile)
 {
     std::ifstream reader;

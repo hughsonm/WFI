@@ -191,6 +191,7 @@ public:
         Eigen::VectorXcd& kvals,
         Eigen::VectorXcd& chi
     );
+    void A3P4(std::string freqfile);
     void readMeasuredData(
         std::string datafile,
         double noise_pct

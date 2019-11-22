@@ -9,6 +9,36 @@ double rand_double(double low, double high){
     return(low+(high-low)*rr);
 }
 
+bool make_outdir(std::string dirname){
+    bool success{false};
+    if(not (dirname.back()=='/' or dirname.back()=='\\'))
+    {
+        dirname += "/";
+    }
+    if(std::filesystem::exists(dirname))
+    {
+        std::cerr << "Directory: " << dirname << " already exists" << std::endl;
+        success = true;
+    }
+    else
+    {
+        std::cerr << "Directory: " << dirname << " does not exist." << std::endl;
+        success = std::filesystem::create_directory(dirname);
+        if(not success)
+        {
+            std::cerr << success << std::endl;
+            std::cerr << "Failed to make directory" << std::endl;
+            assert(false);
+        }
+        else
+        {
+            success = true;
+            std::cerr << "Now it does." << std::endl;
+        }
+    }
+    return(success);
+}
+
 int main(int argc, char** argv){
     gmsh::initialize();
     std::cout << "Hello from A3\n";
@@ -40,7 +70,7 @@ int main(int argc, char** argv){
     img_chamber.setupAntennas(antennafile);
     img_chamber.setupProbes(probefile);
     img_chamber.readMeasuredData(datatotalfile,0.0);
-    
+
     Eigen::MatrixXd kpts;
     Eigen::VectorXcd kvals;
     Eigen::VectorXcd chi;
@@ -52,31 +82,7 @@ int main(int argc, char** argv){
     );
 
 
-
-    if(not (outdir.back()=='/' or outdir.back()=='\\'))
-    {
-        outdir += "/";
-    }
-    if(std::filesystem::exists(outdir))
-    {
-        std::cerr << "Directory: " << outdir << " already exists" << std::endl;
-    }
-    else
-    {
-        std::cerr << "Directory: " << outdir << " does not exist." << std::endl;
-        auto dir_success{std::filesystem::create_directory(outdir)};
-
-        if(not dir_success)
-        {
-            std::cerr << dir_success << std::endl;
-            std::cerr << "Failed to make directory" << std::endl;
-            assert(false);
-        }
-        else
-        {
-            std::cerr << "Now it does." << std::endl;
-        }
-    }
+    make_outdir(outdir);
 
     WriteVectorToFile(
         outdir + "chi.txt",
@@ -100,6 +106,8 @@ int main(int argc, char** argv){
         outdir + "kvals.txt",
         kvals
     );
+
+    img_chamber.A3P4(p4_freqfile);
 
 
     gmsh::finalize();
