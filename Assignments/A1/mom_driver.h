@@ -175,6 +175,10 @@ public:
     void calcDataEzInc(void);
     void calcDataEzTot(void);
     void buildDataGreen(void);
+    void fillKSpace(
+        Eigen::MatrixXd& kpts,
+        Eigen::VectorXcd& kvals
+    );
     void A2Q3(
         Eigen::MatrixXcd & w_calc,
         Eigen::VectorXcd & X_calc
@@ -196,12 +200,13 @@ public:
         std::string datafile,
         double noise_pct
     );
-    double frequency;
-    std::complex<double> k2_b{0.0};
-    Eigen::MatrixXcd G_b_domain;
-    Eigen::MatrixXcd G_b_data;
+    std::vector<double> frequencies;
+    std::vector<std::complex<double> > k2_bs;
+    //Eigen::MatrixXcd G_b_domain;
+    std::vector<Eigen::MatrixXcd> G_b_domain_by_freq;
+    std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
     // L = (I+G*Chi);
-    Eigen::MatrixXcd L_domain;
+    std::vector<Eigen::MatrixXcd> L_domain_by_freq;
     Eigen::MatrixXcd Chi;
     Eigen::FullPivLU<Eigen::MatrixXcd> LU_L;
     std::vector<Antenna> antennas;
@@ -210,9 +215,9 @@ public:
     Mesh mesh;
     Target target;
 
-    std::vector<Field> Ez_inc,Ez_tot,Ez_sct;
-    std::vector<Field> Ez_inc_d,Ez_tot_d,Ez_sct_d;
-    std::vector<Field> Ez_tot_meas,Ez_sct_meas;
+    std::vector<std::vector<Field> > Ez_inc,Ez_tot,Ez_sct;
+    std::vector<std::vector<Field> > Ez_inc_d,Ez_tot_d,Ez_sct_d;
+    std::vector<std::vector<Field> > Ez_tot_meas,Ez_sct_meas;
 };
 
 

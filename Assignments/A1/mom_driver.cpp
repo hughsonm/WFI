@@ -120,7 +120,8 @@ void Antenna::getEz(
         }
         case Patch:
         {
-            assert(0==1);
+            std::cout << "Not yet implemented\n";
+            assert(false);
         }
     }
 }
@@ -369,7 +370,6 @@ void Mesh::buildDomainGreen(
 Chamber::Chamber(std::string meshfile)
 {
     mesh.buildTriangulation(meshfile);
-
     // Set the target to be zero contrast.
     target.eps_r.setLocations(mesh.centroids);
     target.eps_r.erase();
@@ -399,44 +399,24 @@ void Chamber::A3P3(
     }
 
     // Check for scattered data at probes
-    if(not(Ez_sct_meas.size()==antennas.size())){
-        if(not(Ez_tot_meas.size()==antennas.size())){
-            std::cerr << "Supplied scattered data have " << Ez_tot_meas.size() << " transmitters.\n";
+    if(not(Ez_sct_meas[0].size()==antennas.size())){
+        if(not(Ez_tot_meas[0].size()==antennas.size())){
+            std::cerr << "Supplied scattered data have " << Ez_tot_meas[0].size() << " transmitters.\n";
             std::cerr << "I have "<<antennas.size() << " antennas\n";
             std::cerr << "Read measured data before calling A3P3 please?\n";
         } else{
             calcDataEzInc();
-            Ez_sct_meas.resize(Ez_tot_meas.size());
-            for(auto ii{0}; ii<Ez_tot_meas.size(); ++ii){
-                Ez_sct_meas[ii].setVals(
-                    Ez_tot_meas[ii].getValRef()-Ez_inc_d[ii].getValRef()
+            Ez_sct_meas[0].resize(Ez_tot_meas[0].size());
+            for(auto ii{0}; ii<Ez_tot_meas[0].size(); ++ii){
+                Ez_sct_meas[0][ii].setVals(
+                    Ez_tot_meas[0][ii].getValRef()-Ez_inc_d[0][ii].getValRef()
                 );
             }
         }
     }
-    // int count;
-    //
-    // count = 0;
-    // for(auto& field : Ez_tot_meas){
-    //     std::cout << "Total " << count++ << "\n";
-    //     std::cout << field.getValRef().transpose() << "\n\n\n";
-    // }
-    //
-    // count = 0;
-    // for(auto& field : Ez_inc_d){
-    //     std::cout << "Incident " << count++ << "\n";
-    //     std::cout << field.getValRef().transpose() << "\n\n\n";
-    // }
-    //
-    // count = 0;
-    // for(auto& field : Ez_sct_meas){
-    //     std::cout << "Scattered " << count++ << "\n";
-    //     std::cout << field.getValRef().transpose() << "\n\n\n";
-    // }
-    //
 
     bool all_fields_correct_size{true};
-    for(auto& ff : Ez_sct_meas){
+    for(auto& ff : Ez_sct_meas[0]){
         all_fields_correct_size &= (ff.getValRef().size()==probes.size());
     }
     if(not(all_fields_correct_size)){
@@ -447,9 +427,9 @@ void Chamber::A3P3(
     auto ntx = antennas.size();
     auto nrx = probes.size();
 
-    assert(1e-10 < std::abs(k2_b));
+    assert(1e-10 < std::abs(k2_bs[0]));
 
-    double k_b{(std::sqrt(k2_b)).real()};
+    double k_b{(std::sqrt(k2_bs[0])).real()};
 
     kpts.resize(nrx*ntx,2);
     kvals.resize(nrx*ntx);
@@ -459,14 +439,14 @@ void Chamber::A3P3(
     for(auto tt{0}; tt<antennas.size(); ++tt){
         Eigen::Vector3d aa{antennas[tt].direction};
         aa /= aa.norm();
-        const Eigen::VectorXcd & field_vals_for_tx{Ez_sct_meas[tt].getValRef()};
+        const Eigen::VectorXcd & field_vals_for_tx{Ez_sct_meas[0][tt].getValRef()};
         for(auto pp{0}; pp<probes.size(); ++pp){
             const Eigen::Vector3d rp{probes[pp].location};
             const auto rp_dist{rp.norm()};
             const Eigen::Vector3d ss{rp/rp_dist};
             const Eigen::Vector3d qq{aa-ss};
             const auto cc{
-                k2_b*
+                k2_bs[0]*
                 (1.0-j_imag)*
                 std::exp(-j_imag*k_b*rp_dist)/
                 4.0/
@@ -519,13 +499,7 @@ void Chamber::setTarget(std::string targetfile)
     int tag;
     double eps_rel_real,eps_rel_imag;
     std::complex<double> eps_rel_complex;
-    // Eigen::VectorXcd eps_to_set;
-    // //eps_r.resize(mesh.tri.rows());
-    // //k2_f.resize(mesh.tri.rows());
-    // for(int rr = 0; rr < eps_r.size(); rr++)
-    // {
-    //     eps_r(rr) = 1.0;
-    // }
+
     target.eps_r.erase();
     Eigen::VectorXcd eps_to_set;
     target.eps_r.getVals(eps_to_set);
@@ -543,7 +517,6 @@ void Chamber::setTarget(std::string targetfile)
             if(mesh.tri(rr,3) == tag)
             {
                 eps_to_set(rr) = eps_rel_complex;
-                //k2_f(rr) = k2_b*eps_r(rr);
             }
         }
     }
@@ -563,20 +536,16 @@ void Chamber::setupProbes(std::string probefile)
     reader >> ins;
     assert(ins.compare("z") == 0);
     double x,y,z;
-    // std::vector<Eigen::Vector3d> vec_of_probes;
     probes.resize(0);
     while(reader)
     {
         Probe pi;
-        // Eigen::Vector3d probe_xyz;
         reader >> x;
         if(reader.eof()) break;
         reader >> y;
         reader >> z;
-        // probe_xyz << x,y,z;
         pi.location << x,y,z;
         pi.ready = true;
-        // vec_of_probes.push_back(probe_xyz);
         probes.push_back(pi);
     }
     probe_points.resize(probes.size(),3);
@@ -584,7 +553,6 @@ void Chamber::setupProbes(std::string probefile)
     {
         probe_points.row(pp) = probes[pp].location.transpose();
     }
-
     reader.close();
 }
 
@@ -609,7 +577,6 @@ void Chamber::readMeasuredData(
             }
         }
     }
-    std::cerr << "Found max in data to be " << max_tot << std::endl;
     Eigen::MatrixXd noise_angles{
         Eigen::MatrixXd::Random(
             tot_matrix.rows(),
@@ -628,9 +595,7 @@ void Chamber::readMeasuredData(
         tot_matrix.rows(),
         tot_matrix.cols()
     );
-
     std::complex<double> imag_j(0,1);
-
     for(auto rr{0}; rr< tot_matrix.rows(); ++rr)
     {
         for(auto cc{0}; cc<tot_matrix.cols();++cc)
@@ -641,20 +606,20 @@ void Chamber::readMeasuredData(
 
     tot_matrix += noise;
 
-    Ez_tot_meas.resize(tot_matrix.cols());
+    Ez_tot_meas[0].resize(tot_matrix.cols());
     for(auto cc{0}; cc<tot_matrix.cols(); ++cc)
     {
         Eigen::VectorXcd column{tot_matrix.col(cc)};
-        Ez_tot_meas[cc].setLocations(probe_points);
-        Ez_tot_meas[cc].setVals(column);
+        Ez_tot_meas[0][cc].setLocations(probe_points);
+        Ez_tot_meas[0][cc].setVals(column);
     }
 }
 
 void Chamber::buildDataGreen(void)
 {
     mesh.buildDataGreen(
-        G_b_data,
-        k2_b,
+        G_b_data_by_freq[0],
+        k2_bs[0],
         probe_points
     );
 }
@@ -689,16 +654,16 @@ void Chamber::A2Q3(
     }
     assert(antennas.size());
 
-    if(!Ez_inc.size())
+    if(!Ez_inc[0].size())
     {
         calcDomainEzInc();
     }
-    assert(Ez_inc.size());
+    assert(Ez_inc[0].size());
 
-    if(!Ez_sct_meas.size())
+    if(!Ez_sct_meas[0].size())
     {
         std::cerr << "We have no scattered data. Attempting to calculate..." << std::endl;
-        if(!Ez_tot_meas.size())
+        if(!Ez_tot_meas[0].size())
         {
             std::cerr << "We have to total data either." << std::endl;
         }
@@ -706,38 +671,37 @@ void Chamber::A2Q3(
         {
             std::cerr << "Calculating Ez inc at probes" << std::endl;
             calcDataEzInc();
-            std::cerr << "Got " << Ez_inc_d.size() << " fields" << std::endl;
-            Ez_sct_meas.resize(Ez_inc_d.size());
-            std::cerr << "Resized Ez_sct_meas to " << Ez_sct_meas.size() << std::endl;
-            std::cerr << "Gonna pull data from Ez_tot_meas(" << Ez_tot_meas.size() << "), and Ez_inc_d(" << Ez_inc_d.size() << ")" << std::endl;
-            for(auto pp{0}; pp < Ez_inc_d.size();++pp)
+            std::cerr << "Got " << Ez_inc_d[0].size() << " fields" << std::endl;
+            Ez_sct_meas[0].resize(Ez_inc_d[0].size());
+            std::cerr << "Resized Ez_sct_meas[0] to " << Ez_sct_meas[0].size() << std::endl;
+            std::cerr << "Gonna pull data from Ez_tot_meas[0](" << Ez_tot_meas[0].size() << "), and Ez_inc_d[0](" << Ez_inc_d[0].size() << ")" << std::endl;
+            for(auto pp{0}; pp < Ez_inc_d[0].size();++pp)
             {
-                const Eigen::VectorXcd & tot_p{Ez_tot_meas[pp].getValRef()};
-                const Eigen::VectorXcd & inc_p{Ez_inc_d[pp].getValRef()};
+                const Eigen::VectorXcd & tot_p{Ez_tot_meas[0][pp].getValRef()};
+                const Eigen::VectorXcd & inc_p{Ez_inc_d[0][pp].getValRef()};
                 std::cout << "tot has " << tot_p.size() << " values " << std::endl;
                 std::cout << "inc has " << inc_p.size() << " values " << std::endl;
                 Eigen::VectorXcd sct_p = tot_p-inc_p;
                 std::cout << "sct has " << sct_p.size() << " values " << std::endl;
-                Ez_sct_meas[pp].setVals(sct_p);
+                Ez_sct_meas[0][pp].setVals(sct_p);
             }
-            assert(Ez_sct_meas.size());
+            assert(Ez_sct_meas[0].size());
         }
-
     }
 
-    if(not (G_b_domain.rows() and G_b_domain.cols()))
+    if(not (G_b_domain_by_freq[0].rows() and G_b_domain_by_freq[0].cols()))
     {
         std::cerr << "We have no green function operator. Attempting to build" << std::endl;
-        assert(k2_b != 0.0);
-        std::cerr << "Frequency is " << frequency << std::endl;
-        std::cerr << "k2_b is " << k2_b << std::endl;
+        assert(k2_bs[0] != 0.0);
+        std::cerr << "frequencies[0] is " << frequencies[0] << std::endl;
+        std::cerr << "k2_bs[0] is " << k2_bs[0] << std::endl;
         mesh.buildDomainGreen(
-            G_b_domain,
-            k2_b
+            G_b_domain_by_freq[0],
+            k2_bs[0]
         );
         std::cerr << "Built green function operator!" << std::endl;
     }
-    // gg(:,k) is k2_b*G(r,r_k), where r_k are the probe locations.
+    // gg(:,k) is k2_bs[0]*G(r,r_k), where r_k are the probe locations.
 	Eigen::MatrixXcd gg(mesh.centroids.rows(),probes.size());
     std::cerr << "Building " << gg.rows() << " by " << gg.cols() << " matrix of little g fields" << std::endl;
 	for(auto pp{0};pp<probes.size();++pp){
@@ -751,32 +715,24 @@ void Chamber::A2Q3(
 		dummy_for_probe.getEz(
             gp,
             mesh.centroids,
-            frequency
+            frequencies[0]
         );
-        std::cerr << "Got the hankel function field, multiplying by k2b = " << k2_b << std::endl;
-		gp *= k2_b;
+        std::cerr << "Got the hankel function field, multiplying by k2b = " << k2_bs[0] << std::endl;
+		gp *= k2_bs[0];
         std::cerr << "Assigning to gg" << std::endl;
 		gg.col(pp) = gp;
         std::cerr << "Assigned!" << std::endl;
 	}
-    // WriteMatrixToFile(
-    //     "gg.txt",
-    //     gg
-    // );
 
-    if(!G_b_data.rows() || !G_b_data.cols())
+    if(!G_b_data_by_freq[0].rows() || !G_b_data_by_freq[0].cols())
     {
-        std::cerr << "Annihilator needs G_b_data. Building it now..." << std::endl;
+        std::cerr << "Annihilator needs G_b_data_by_freq[0]. Building it now..." << std::endl;
         buildDataGreen();
     }
 
     Eigen::MatrixXcd H{
-        (k2_b)*G_b_data*(gg.conjugate())
+        (k2_bs[0])*G_b_data_by_freq[0]*(gg.conjugate())
     };
-    // WriteMatrixToFile(
-    //     "H.txt",
-    //     H
-    // );
 
     std::cerr << "LU-decomposing H:" << std::endl;
 
@@ -799,12 +755,12 @@ void Chamber::A2Q3(
     );
 
     std::cerr << "Gonna get contrast sources for " << probes.size() << " probes " << std::endl;
-    std::cerr << "How much scattered data do I have? "<< Ez_sct_meas.size() << std::endl;
+    std::cerr << "How much scattered data do I have? "<< Ez_sct_meas[0].size() << std::endl;
 
 	for(auto tt{0};tt<antennas.size();++tt){
         std::cerr << "Solving for contrast sources for tx " << tt << std::endl;
         Eigen::VectorXcd Ezs_t;
-        Ez_sct_meas[tt].getVals(Ezs_t);
+        Ez_sct_meas[0][tt].getVals(Ezs_t);
         std::cerr << "Asking H_LU to solve against " << Ezs_t.size() << " values " << std::endl;
 
         Eigen::VectorXcd w{H_LU.solve(Ezs_t)};
@@ -812,10 +768,6 @@ void Chamber::A2Q3(
 
 		w_basis_coeffs.col(tt) = w;
 	}
-    // WriteMatrixToFile(
-    //     "a2q3_w_basis.txt",
-    //     w_basis_coeffs
-    // );
 
     Eigen::MatrixXcd w_on_eles(
         mesh.areas.size(),
@@ -839,8 +791,8 @@ void Chamber::A2Q3(
 
     for(auto tt{0}; tt<w_on_eles.cols(); ++tt)
     {
-        // My G operators map from k2_b*w to u^s
-        domain_total_fields.col(tt) = Ez_inc[tt].getValRef() + k2_b*G_b_domain*w_on_eles.col(tt);
+        // My G operators map from k2_bs[0]*w to u^s
+        domain_total_fields.col(tt) = Ez_inc[0][tt].getValRef() + k2_bs[0]*G_b_domain_by_freq[0]*w_on_eles.col(tt);
     }
     Eigen::VectorXcd contrast(mesh.areas.size());
     for(auto kk{0}; kk<contrast.size(); ++kk)
@@ -930,34 +882,32 @@ void Chamber::A2Q5(
     auto ntx{antennas.size()};
     auto ntri{mesh.areas.size()};
 
-    // Ez_sct_meas.resize(Ez_tot_meas.rows(),Ez_tot_meas.cols());
-    Ez_sct_meas.resize(ntx);
+    Ez_sct_meas[0].resize(ntx);
 
-    if(!Ez_inc_d.size())
+    if(!Ez_inc_d[0].size())
     {
         calcDataEzInc();
     }
 
-    Eigen::MatrixXcd Ez_sct_meas_mat(G_b_data.rows(),ntx);
+    Eigen::MatrixXcd Ez_sct_meas_mat(G_b_data_by_freq[0].rows(),ntx);
     for(auto tt{0}; tt<ntx; ++tt)
     {
         Eigen::VectorXcd tot_t;
-        Ez_tot_meas[tt].getVals(tot_t);
+        Ez_tot_meas[0][tt].getVals(tot_t);
         Eigen::VectorXcd inc_t;
-        Ez_inc_d[tt].getVals(inc_t);
+        Ez_inc_d[0][tt].getVals(inc_t);
         Eigen::VectorXcd sct_t{tot_t-inc_t};
-        Ez_sct_meas[tt].setVals(sct_t);
+        Ez_sct_meas[0][tt].setVals(sct_t);
         Ez_sct_meas_mat.col(tt) = sct_t;
     }
 
-    // Ez_sct_meas = Ez_tot_meas - Ez_inc_d;
 
-    if(!G_b_data.rows() || !G_b_data.cols())
+    if(!G_b_data_by_freq[0].rows() || !G_b_data_by_freq[0].cols())
     {
-        std::cerr << "Annihilator needs G_b_data. Building it now..." << std::endl;
+        std::cerr << "Annihilator needs G_b_data_by_freq[0]. Building it now..." << std::endl;
         buildDataGreen();
     }
-    Eigen::MatrixXcd P{k2_b*G_b_data};
+    Eigen::MatrixXcd P{k2_bs[0]*G_b_data_by_freq[0]};
     Eigen::MatrixXcd optimal_alphas(P.cols(),ntx);
 
     if(tikhonov)
@@ -1155,7 +1105,6 @@ void Chamber::A2Q5(
             Eigen::PartialPivLU<Eigen::MatrixXcd> PhP_LU;
             PhP_LU.compute(PhP);
 
-
             for(auto tt{0}; tt<ntx; ++tt)
             {
                 optimal_alphas.col(tt) = PhP_LU.solve(Phd_all.col(tt));
@@ -1163,76 +1112,47 @@ void Chamber::A2Q5(
 
         }
     }
-    // WriteMatrixToFile(
-    //     "Alphas.txt",
-    //     optimal_alphas
-    // );
-    // Now I have all of my alphas. These alpha_i is a vector of  the
-    // basis coefficients of the source which satisfies the scattered
-    // data generated by transmitter_i.
-
-    // From alpha, I can get a u^T, by:
-    // u^T(r) = u^I(r) + G_b_domain*alpha
-    if(!Ez_inc.size())
+    if(!Ez_inc[0].size())
     {
         calcDomainEzInc();
     }
-    if(!G_b_domain.rows() || !G_b_domain.cols())
+    if(!G_b_domain_by_freq[0].rows() || !G_b_domain_by_freq[0].cols())
     {
-        std::cerr << "Annihilator need G_b_domain. Building it now..." << std::endl;
+        std::cerr << "Annihilator need G_b_domain_by_freq[0]. Building it now..." << std::endl;
         mesh.buildDomainGreen(
-            G_b_domain,
-            k2_b
+            G_b_domain_by_freq[0],
+            k2_bs[0]
         );
     }
     std::cerr << "Making the matrix of total fields in imaging domain..." << std::endl;
-    // std::cerr << "Ez_inc is " << Ez_inc.rows() << " by " << Ez_inc.size() << std::endl;
-    // std::cerr << "G_b_domain is " << G_b_domain.rows() << " by " << G_b_domain.cols() << std::endl;
-    // std::cerr << "optimal_alphas is " << optimal_alphas.rows() << " by " << optimal_alphas.cols() << std::endl;
     Eigen::MatrixXcd Ez_tot_opt(ntri,ntx);
 
     for(auto cc{0}; cc<Ez_tot_opt.cols(); ++cc)
     {
         Eigen::VectorXcd inc_c;
-        Ez_inc[cc].getVals(inc_c);
-        Ez_tot_opt.col(cc) = inc_c + k2_b*G_b_domain*optimal_alphas.col(cc);
+        Ez_inc[0][cc].getVals(inc_c);
+        Ez_tot_opt.col(cc) = inc_c + k2_bs[0]*G_b_domain_by_freq[0]*optimal_alphas.col(cc);
     }
     std::cerr << "success!" << std::endl;
 
-    // WriteMatrixToFile(
-    //     "Ez_tot_opt.txt",
-    //     Ez_tot_opt
-    // );
     Eigen::VectorXcd chi_opt(ntri);
     chi_opt.setZero();
 
     for(auto ii{0}; ii < ntri; ++ii)
     {
-        //std::cerr << "Calculating contrast number " << ii << " of " << ntri << std::endl;
         std::complex<double> numerator{0.0},denominator{0.0};
-        //std::cerr << "num and den start as " << numerator << "," << denominator << std::endl;
         for(auto tt{0}; tt<ntx; ++tt)
         {
             std::complex<double> uit{Ez_tot_opt(ii,tt)};
             std::complex<double> uitstar{std::conj(uit)};
             std::complex<double> ait{optimal_alphas(ii,tt)};
-            //std::cerr << "\tPulling out " << uij << " and " << uijstar << std::endl;
-            //std::cerr << "\tAlso using alpha = " << aij << std::endl;
-            //std::cerr << "\tGonna add " << uijstar*aij << " to " << numerator << std::endl;
-            //std::cerr << "\tGonna add " << uijstar*uij << " to " << denominator << std::endl;
             numerator += uitstar*ait;
             denominator += uitstar*uit;
-            //std::cerr << "\tIt worked!!" << std::endl;
         }
-        //std::cerr << "Now, num = " << numerator << ", and den = " << denominator << std::endl;
-        //std::cerr << "Divide them, and we get " << numerator/denominator << std::endl;
         chi_opt(ii) = numerator/denominator;
 
     }
-    // WriteVectorToFile(
-    //     "Chi.txt",
-    //     chi_opt
-    // );
+
     w_calc = optimal_alphas;
     u_calc = Ez_tot_opt;
     X_calc = chi_opt;
@@ -1296,14 +1216,16 @@ void Chamber::setupAntennas(std::string antennafile)
 
 void Chamber::setFrequency(double freq)
 {
-    frequency = freq;
+    frequencies.resize(1);
+    G_b_domain_by_freq.resize(1);
+    frequencies[0] = freq;
     double omega = 2*M_PI*freq;
-    k2_b = omega*omega/CNAUGHT/CNAUGHT;
+    k2_bs[0] = omega*omega/CNAUGHT/CNAUGHT;
 }
 
 void Chamber::calcDomainEzInc(void)
 {
-    Ez_inc.resize(antennas.size());
+    Ez_inc[0].resize(antennas.size());
     for(auto aa{0}; aa<antennas.size(); ++aa)
     {
         Field field_from_antenna;
@@ -1311,27 +1233,27 @@ void Chamber::calcDomainEzInc(void)
         antennas[aa].getEz(
             ez_from_antenna,
             mesh.centroids,
-            frequency
+            frequencies[0]
         );
         field_from_antenna.setLocations(mesh.centroids);
         field_from_antenna.setVals(ez_from_antenna);
-        Ez_inc[aa] = field_from_antenna;
+        Ez_inc[0][aa] = field_from_antenna;
     }
 }
 
 void Chamber::calcDataEzInc(void)
 {
-    Ez_inc_d.resize(antennas.size());
+    Ez_inc_d[0].resize(antennas.size());
     for(auto aa{0}; aa<antennas.size(); ++aa)
     {
         Eigen::VectorXcd ez_from_antenna_at_probes;
         antennas[aa].getEz(
             ez_from_antenna_at_probes,
             probe_points,
-            frequency
+            frequencies[0]
         );
-        Ez_inc_d[aa].setLocations(probe_points);
-        Ez_inc_d[aa].setVals(ez_from_antenna_at_probes);
+        Ez_inc_d[0][aa].setLocations(probe_points);
+        Ez_inc_d[0][aa].setVals(ez_from_antenna_at_probes);
     }
 }
 
@@ -1349,11 +1271,11 @@ void Chamber::calcDomainEzTot(void)
             // Build domain green matrix
             std::cerr << "Building domain green..." << std::endl;
             mesh.buildDomainGreen(
-                G_b_domain,
-                k2_b
+                G_b_domain_by_freq[0],
+                k2_bs[0]
             );
-            std::cerr << "G:(" << G_b_domain.rows() << ",";
-            std::cerr << G_b_domain.cols() << ")" << std::endl;
+            std::cerr << "G:(" << G_b_domain_by_freq[0].rows() << ",";
+            std::cerr << G_b_domain_by_freq[0].cols() << ")" << std::endl;
             std::cerr << "Building Chi..." << std::endl;
 
             // Build contrast matrix
@@ -1363,56 +1285,56 @@ void Chamber::calcDomainEzTot(void)
             Chi.setZero();
             for(int dd = 0; dd < Chi.cols();dd++)
             {
-                Chi(dd,dd) = k2_b*eps_r_from_target(dd)-k2_b;
+                Chi(dd,dd) = k2_bs[0]*eps_r_from_target(dd)-k2_bs[0];
             }
 
             // Build domain L operator
             std::cerr << "Building L_domain" << std::endl;
-            // L_domain.resize(G_b_domain.rows(),G_b_domain.cols());
-            L_domain = -G_b_domain;
+            // L_domain_by_freq[0].resize(G_b_domain.rows(),G_b_domain.cols());
+            L_domain_by_freq[0] = -G_b_domain_by_freq[0];
 
             for(int cc = 0; cc< Chi.cols(); cc++)
             {
-                L_domain.col(cc) *= Chi(cc,cc);
-                L_domain(cc,cc) += 1.0;
+                L_domain_by_freq[0].col(cc) *= Chi(cc,cc);
+                L_domain_by_freq[0](cc,cc) += 1.0;
             }
 
             std::cerr << "filled,";
             // Perform LU factorization of domain L operator
-            LU_L.compute(L_domain);
+            LU_L.compute(L_domain_by_freq[0]);
             std::cerr << "factored" << std::endl;
         }
         case 1:
         {
-            Ez_sct.resize(antennas.size());
-            for(auto ss{0}; ss < Ez_sct.size(); ss++)
+            Ez_sct[0].resize(antennas.size());
+            for(auto ss{0}; ss < Ez_sct[0].size(); ss++)
             {
-                Ez_sct[ss].setLocations(mesh.centroids);
+                Ez_sct[0][ss].setLocations(mesh.centroids);
             }
             // Calculate all the scattered fields
-            for(int jj = 0; jj < Ez_inc.size(); jj++)
+            for(int jj = 0; jj < Ez_inc[0].size(); jj++)
             {
                 Eigen::VectorXcd inc_vec,sct_vec;
-                Ez_inc[jj].getVals(inc_vec);
+                Ez_inc[0][jj].getVals(inc_vec);
                 sct_vec = LU_L.solve(
-                    G_b_domain*(
+                    G_b_domain_by_freq[0]*(
                         Chi*inc_vec
                     )
                 );
-                Ez_sct[jj].setVals(sct_vec);
+                Ez_sct[0][jj].setVals(sct_vec);
             }
         }
         case 2:
         {
             // Add scattered to indident to get total fields
-            Ez_tot.resize(antennas.size());
+            Ez_tot[0].resize(antennas.size());
             for(auto tt{0}; tt<antennas.size(); ++tt)
             {
                 Eigen::VectorXcd inc_vec,sct_vec,tot_vec;
-                Ez_inc[tt].getVals(inc_vec);
-                Ez_sct[tt].getVals(sct_vec);
+                Ez_inc[0][tt].getVals(inc_vec);
+                Ez_sct[0][tt].getVals(sct_vec);
                 tot_vec = inc_vec+sct_vec;
-                Ez_tot[tt].setVals(tot_vec);
+                Ez_tot[0][tt].setVals(tot_vec);
             }
         }
     }
@@ -1420,19 +1342,19 @@ void Chamber::calcDomainEzTot(void)
 
 void Chamber::calcDataEzTot(void)
 {
-    if(!(Ez_tot.size() == antennas.size()))
+    if(!(Ez_tot[0].size() == antennas.size()))
     {
         std::cerr << "Ez_tot was not built. Getting it now.";
         std::cerr << std::endl;
         calcDomainEzTot();
     }
-    if(!G_b_data.rows() || !G_b_data.cols())
+    if(!G_b_data_by_freq[0].rows() || !G_b_data_by_freq[0].cols())
     {
         std::cerr << "Data green was not built. Getting it now";
         std::cerr << std::endl;
         mesh.buildDataGreen(
-            G_b_data,
-            k2_b,
+            G_b_data_by_freq[0],
+            k2_bs[0],
             probe_points
         );
     }
@@ -1441,22 +1363,83 @@ void Chamber::calcDataEzTot(void)
     std::cerr << antennas.size() << std::endl;
 
     calcDataEzInc();
-    Ez_sct_d.resize(antennas.size());
-    Ez_tot_d.resize(antennas.size());
+    Ez_sct_d[0].resize(antennas.size());
+    Ez_tot_d[0].resize(antennas.size());
 
     for(int tt = 0; tt < Ez_tot.size(); tt++)
     {
         std::cerr << "Calculating d-sct for antenna ";
         std::cerr << tt << std::endl;
         Eigen::VectorXcd Ez_tot_t;
-        Ez_tot[tt].getVals(Ez_tot_t);
-        Eigen::VectorXcd Ez_sct_d_t{G_b_data*(Chi*(Ez_tot_t))};
-        Ez_sct_d[tt].setVals(Ez_sct_d_t);
+        Ez_tot[0][tt].getVals(Ez_tot_t);
+        Eigen::VectorXcd Ez_sct_d_t{G_b_data_by_freq[0]*(Chi*(Ez_tot_t))};
+        Ez_sct_d[0][tt].setVals(Ez_sct_d_t);
         Eigen::VectorXcd Ez_inc_d_t;
-        Ez_inc_d[tt].getVals(Ez_inc_d_t);
+        Ez_inc_d[0][tt].getVals(Ez_inc_d_t);
         Eigen::VectorXcd Ez_tot_d_t{Ez_sct_d_t+Ez_inc_d_t};
-        Ez_tot_d[tt].setVals(Ez_tot_d_t);
+        Ez_tot_d[0][tt].setVals(Ez_tot_d_t);
     }
+}
+
+void Chamber::fillKSpace(
+    Eigen::MatrixXd& kpts,
+    Eigen::VectorXcd& kvals
+){
+
+    // Every measured field datum produces a point in k-space.
+    assert(frequencies.size());
+    assert(frequencies.size() == Ez_sct_meas.size());
+
+    auto n_data{0};
+    for(auto& vec : Ez_sct_meas){
+        assert(vec.size() == antennas.size());
+        for(auto& field : vec){
+            auto field_size{field.getValRef().size()};
+            assert(field_size == probes.size());
+            n_data += field_size;
+        }
+    }
+
+    kpts.resize(n_data,2);
+    kvals.resize(n_data);
+    std::complex<double> j_imag(0.0,1.0);
+    auto k_ptr{0};
+    for(auto ifreq{0}; ifreq<frequencies.size();++ifreq){
+        const double omega{2*M_PI*frequencies[ifreq]};
+        for(auto itx{0}; itx<Ez_sct_meas[ifreq].size(); ++itx){
+            auto& field_for_tx{Ez_sct_meas[ifreq][itx].getValRef()};
+            auto field_size{field_for_tx.size()};
+            Eigen::Vector3d rt{antennas[itx].location};
+            const auto rt_norm{rt.norm()};
+            Eigen::Vector3d rt_hat{rt/rt_norm};
+            for(auto irx{0}; irx<field_size;++irx){
+                Eigen::Vector3d rk{probes[irx].location};
+                const auto rk_norm{rk.norm()};
+                Eigen::Vector3d rk_hat{rk/rk_norm};
+                Eigen::Vector3d qq{rk_hat+rt_hat};
+                auto cc{
+                    -j_imag*omega*std::exp(
+                        -j_imag*omega/CNAUGHT*(
+                            rk_norm+rt_norm
+                        )/
+                        (
+                            8*CNAUGHT*M_PI*std::sqrt(
+                                rk_norm*rt_norm
+                            )
+                        )
+                    )
+                };
+                auto kx{-omega*qq(0)/CNAUGHT};
+                auto ky{-omega*qq(1)/CNAUGHT};
+                auto kz{field_for_tx(irx)/cc};
+                kpts(k_ptr,0) = kx;
+                kpts(k_ptr,1) = ky;
+                kvals(k_ptr)  = kz;
+                k_ptr++;
+            }
+        }
+    }
+
 }
 
 
@@ -1566,44 +1549,6 @@ void WriteVectorToFile(
         writer << vec(ii) << std::endl;
     }
     writer.close();
-}
-
-void BuildDataGreen(
-    Eigen::MatrixXcd & G,
-    const Eigen::MatrixXd & centroids,
-    const Eigen::VectorXd & areas,
-    const Eigen::MatrixXd & rxlocations,
-    double k2_b
-)
-{
-    int n_rx = rxlocations.rows();
-    int n_ele = areas.size();
-    G.resize(n_rx,n_ele);
-    std::complex<double> j(0,1);
-    double k_b = std::sqrt(k2_b);
-    for(int rr = 0; rr < n_rx; rr++)
-    {
-
-        for(int ee = 0; ee < n_ele; ee++)
-        {
-            Eigen::VectorXd dxyz;
-            dxyz = (rxlocations.row(rr)-centroids.row(ee)).transpose();
-            dxyz = dxyz.array().pow(2);
-            double d_re = std::sqrt(dxyz.array().sum());
-            double a_e = std::sqrt(areas(ee)/M_PI);
-
-            std::complex<double> J1 = boost::math::cyl_bessel_j(
-                1,
-                k_b*a_e
-            );
-            std::complex<double> H02 = boost::math::cyl_hankel_2(
-                0,
-                k_b*d_re
-            );
-            std::complex<double> G_re = -j*M_PI*a_e*J1*H02/2.0/k_b;
-            G(rr,ee) = G_re;
-        }
-    }
 }
 
 void ReadVectorFromFile(
