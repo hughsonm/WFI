@@ -165,16 +165,16 @@ public:
 class Chamber
 {
 public:
-    Chamber(std::string meshfile);
-    void setTarget(std::string targetfile);
-    void setupAntennas(std::string antennafile);
-    void setupProbes(std::string probefile);
-    void setFrequency(double freq);
+    Chamber(const std::string& meshfile);
+    void setTarget(const std::string& targetfile);
+    void setupAntennas(const std::string& antennafile);
+    void setupProbes(const std::string& probefile);
+    void setFrequencies(const std::string& freqfile);
     void calcDomainEzInc(void);
     void calcDomainEzTot(void);
     void calcDataEzInc(void);
     void calcDataEzTot(void);
-    void buildDataGreen(void);
+    // void buildDataGreen(void);
     void fillKSpace(
         Eigen::MatrixXd& kpts,
         Eigen::VectorXcd& kvals
@@ -197,7 +197,7 @@ public:
     );
     void A3P4(std::string freqfile);
     void readMeasuredData(
-        std::string datafile,
+        std::string dataprefix,
         double noise_pct
     );
     std::vector<double> frequencies;
@@ -207,7 +207,6 @@ public:
     std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
     // L = (I+G*Chi);
     std::vector<Eigen::MatrixXcd> L_domain_by_freq;
-    Eigen::MatrixXcd Chi;
     Eigen::FullPivLU<Eigen::MatrixXcd> LU_L;
     std::vector<Antenna> antennas;
     std::vector<Probe> probes;

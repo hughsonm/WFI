@@ -26,7 +26,7 @@ int main (int argc, char **argv)
 
     img_chamber.setupAntennas(argv[3]);
 
-    img_chamber.setFrequency(std::atof(argv[4]));
+    img_chamber.setFrequencies(argv[4]);
 
     img_chamber.setupProbes(argv[5]);
 
@@ -61,33 +61,41 @@ int main (int argc, char **argv)
     }
 
     Eigen::MatrixXcd M_Ez_out;
+    auto fv_count{0};
+    for(auto& fv : img_chamber.Ez_inc){
+        FormFieldMatrix(
+            M_Ez_out,
+            fv
+        );
+        WriteMatrixToFile(
+            outdir + "Ez_inc_" + std::to_string(fv_count) + ".txt",
+            M_Ez_out
+        );
+    }
 
-    FormFieldMatrix(
-        M_Ez_out,
-        img_chamber.Ez_inc
-    );
-    WriteMatrixToFile(
-        outdir + "Ez_inc.txt",
-        M_Ez_out
-    );
+    fv_count = 0;
+    for(auto& fv : img_chamber.Ez_sct){
+        FormFieldMatrix(
+            M_Ez_out,
+            fv
+        );
+        WriteMatrixToFile(
+            outdir + "Ez_sct_" + std::to_string(fv_count) + ".txt",
+            M_Ez_out
+        );
+    }
 
-    FormFieldMatrix(
-        M_Ez_out,
-        img_chamber.Ez_sct
-    );
-    WriteMatrixToFile(
-        outdir + "Ez_sct.txt",
-        M_Ez_out
-    );
-
-    FormFieldMatrix(
-        M_Ez_out,
-        img_chamber.Ez_tot
-    );
-    WriteMatrixToFile(
-        outdir + "Ez_tot.txt",
-        M_Ez_out
-    );
+    fv_count = 0;
+    for(auto& fv : img_chamber.Ez_tot){
+        FormFieldMatrix(
+            M_Ez_out,
+            fv
+        );
+        WriteMatrixToFile(
+            outdir + "Ez_tot_" + std::to_string(fv_count) + ".txt",
+            M_Ez_out
+        );
+    }
 
     WriteMatrixToFile(
         outdir + "tri_pts.txt",
@@ -114,33 +122,41 @@ int main (int argc, char **argv)
         img_chamber.probe_points
     );
 
-    FormFieldMatrix(
-        M_Ez_out,
-        img_chamber.Ez_inc_d
-    );
-    WriteMatrixToFile(
-        outdir + "Ez_inc_d.txt",
-        M_Ez_out
-    );
+    fv_count = 0;
+    for(auto& fv : img_chamber.Ez_inc_d){
+        FormFieldMatrix(
+            M_Ez_out,
+            fv
+        );
+        WriteMatrixToFile(
+            outdir + "Ez_inc_d_" + std::to_string(fv_count) + ".txt",
+            M_Ez_out
+        );
+    }
 
-    FormFieldMatrix(
-        M_Ez_out,
-        img_chamber.Ez_sct_d
-    );
-    WriteMatrixToFile(
-        outdir + "Ez_sct_d.txt",
-        M_Ez_out
-    );
+    fv_count = 0;
+    for(auto& fv : img_chamber.Ez_sct_d){
+        FormFieldMatrix(
+            M_Ez_out,
+            fv
+        );
+        WriteMatrixToFile(
+            outdir + "Ez_sct_d_" + std::to_string(fv_count) + ".txt",
+            M_Ez_out
+        );
+    }
 
-    FormFieldMatrix(
-        M_Ez_out,
-        img_chamber.Ez_tot_d
-    );
-    WriteMatrixToFile(
-        outdir + "Ez_tot_d.txt",
-        M_Ez_out
-    );
-
+    fv_count = 0;
+    for(auto& fv : img_chamber.Ez_tot_d){
+        FormFieldMatrix(
+            M_Ez_out,
+            fv
+        );
+        WriteMatrixToFile(
+            outdir + "Ez_tot_d_" + std::to_string(fv_count) + ".txt",
+            M_Ez_out
+        );
+    }
 
     std::cerr << "\nFinalizing gmsh...";
     gmsh::finalize();

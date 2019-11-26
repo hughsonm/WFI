@@ -22,6 +22,12 @@
 *probe_xyz.txt
 *tri_areas.txt
 *tri_centroids.txt
+*Ez_inc_d_*.txt
+*Ez_sct_d_*.txt
+*Ez_tot_d_*.txt
+*Ez_inc_*.txt
+*Ez_sct_*.txt
+*Ez_tot_*.txt
 Assignments/A1/Report
 Assignments/A1/eps_r.txt
 Assignments/A2/Tri.txt

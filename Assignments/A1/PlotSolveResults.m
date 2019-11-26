@@ -7,24 +7,26 @@ K_B = (2*pi*FREQ)/CNAUGHT;
 
 LAMBDA = CNAUGHT/FREQ;
 
-tri =       ReadCppMatrixFromFile('tri_tri.txt');
-pts =       ReadCppMatrixFromFile('tri_pts.txt');
-centroids = ReadCppMatrixFromFile('tri_centroids.txt');
-areas =     ReadCppVectorFromFile('tri_areas.txt');
+DATADIR = 'A1out';
+
+tri =       ReadCppMatrixFromFile([DATADIR '/tri_tri.txt']);
+pts =       ReadCppMatrixFromFile([DATADIR '/tri_pts.txt']);
+centroids = ReadCppMatrixFromFile([DATADIR '/tri_centroids.txt']);
+areas =     ReadCppVectorFromFile([DATADIR '/tri_areas.txt']);
 eq_radii = sqrt(areas/pi);
 
-Ez_inc =    ReadCppMatrixFromFile('Ez_inc.txt');
-Ez_sct =    ReadCppMatrixFromFile('Ez_sct.txt');
-Ez_tot =    ReadCppMatrixFromFile('Ez_tot.txt');
+Ez_inc =    ReadCppMatrixFromFile([DATADIR '/Ez_inc_0.txt']);
+Ez_sct =    ReadCppMatrixFromFile([DATADIR '/Ez_sct_0.txt']);
+Ez_tot =    ReadCppMatrixFromFile([DATADIR '/Ez_tot_0.txt']);
 
-eps_r =        ReadCppVectorFromFile('eps_r.txt');
+eps_r =        ReadCppVectorFromFile([DATADIR '/eps_r.txt']);
 k2 = eps_r*K_B^2;
 
 
-probes =    ReadCppMatrixFromFile('probe_xyz.txt');
-Ez_inc_p =  ReadCppMatrixFromFile('Ez_inc_d.txt');
-Ez_sct_p =  ReadCppMatrixFromFile('Ez_sct_d.txt');
-Ez_tot_p =  ReadCppMatrixFromFile('Ez_tot_d.txt');
+probes =    ReadCppMatrixFromFile([DATADIR '/probe_xyz.txt']);
+Ez_inc_p =  ReadCppMatrixFromFile([DATADIR '/Ez_inc_d_0.txt']);
+Ez_sct_p =  ReadCppMatrixFromFile([DATADIR '/Ez_sct_d_0.txt']);
+Ez_tot_p =  ReadCppMatrixFromFile([DATADIR '/Ez_tot_d_0.txt']);
 
 
 tags = tri(:,end);
@@ -155,7 +157,7 @@ if(ITX == 1)
     hold on;
     plot(...
         t_theta(plot_start_idx:end),...
-        abs(t_Ez_tot(plot_start_idx:end)),...
+        abs(t_Ez_tot(end:-1:plot_start_idx)),...
         'b:',...
         'LineWidth',15);
     set(gca,'ydir','normal');
@@ -166,7 +168,7 @@ if(ITX == 1)
     hold off;
     imagesc([0 200], [0 4.8], flip(f4,1));
     hold on;
-    plot(phi*180/pi,echo_width/LAMBDA,...
+    plot(phi*180/pi,echo_width(end:-1:1)/LAMBDA,...
         'b:',...
         'LineWidth',15);
     set(gca,'ydir','normal');
