@@ -1332,20 +1332,6 @@ void Chamber::calcDataEzInc(void)
         }
         Ez_inc_d.push_back(vec_of_field_for_freq);
     }
-
-
-    // Ez_inc_d[0].resize(antennas.size());
-    // for(auto aa{0}; aa<antennas.size(); ++aa)
-    // {
-    //     Eigen::VectorXcd ez_from_antenna_at_probes;
-    //     antennas[aa].getEz(
-    //         ez_from_antenna_at_probes,
-    //         probe_points,
-    //         frequencies[0]
-    //     );
-    //     Ez_inc_d[0][aa].setLocations(probe_points);
-    //     Ez_inc_d[0][aa].setVals(ez_from_antenna_at_probes);
-    // }
 }
 
 void Chamber::calcDomainEzTot(void)
@@ -1557,8 +1543,51 @@ void Chamber::fillKSpace(
     }
 }
 
+void Chamber::setupTx2RxMap(
+    const std::string& mapfile
+)
+{
+    std::ifstream reader;
+    reader.open(mapfile, std::ifstream::in);
+
+    std::string ins;
+    reader >> ins;
+
+    while(!reader.eof()){
+        assert(ins == "FrequencyIndex");
+        int ff_index;
+        reader >> ff_index;
+        ff_index--;
+        assert(0<=ff_index);
+        tx2rx.resize(ff_index+1);
+
+        reader >> ins;
+        assert(ins == "TransmitterIndex");
+
+        int tx_index;
+        reader >> tx_index;
+        tx_index--;
+        assert(0<=tx_index);
+        tx2rx[ff_index].resize(tx_index+1);
+
+        reader >> ins;
+        assert(ins == "ReceiverIndices");
+
+        while(true){
+            reader >> ins;
+            if(ins == "FrequencyIndex"){
+                break;
+            } else if(reader.eof()){
+                break;
+            } else{
+                tx2rx[ff_index][tx_index].push_back(std::stoi(ins));
+            }
+        }
+    }
+    reader.close();
+}
+
 void Chamber::bornIterativeMethod(){
-    
 }
 
 

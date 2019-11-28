@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <filesystem>
 #include <gmsh.h>
@@ -41,30 +42,12 @@ bool make_outdir(std::string& dirname){
 
 int main(int argc, char** argv){
     gmsh::initialize();
-    std::cout << "Hello from A3\n";
-
-    // Pass in arguments as a single directory which must contain certain files.
-    //  a list of frequencies
-    //  a list of transmitter positions
-    //  a list of probe positions
-    //  a list of scattered-field data at the probe locations
-    assert(argc==8);
     std::string meshfile{argv[1]};
-    std::string p3_freqfile{argv[2]};
-    std::string p4_freqfile{argv[3]};
-    std::string antennafile{argv[4]};
-    std::string probefile{argv[5]};
-    std::string datatotalprefix{argv[6]};
-    std::string outdir{argv[7]};
+    std::string tx2rxfile{argv[2]};
+    std::cout << "Mesh File     : " << meshfile << "\n";
 
-    std::cout << "Running A3...\n";
-    std::cout << "Mesh File         : " << meshfile << "\n";
-    std::cout << "P4 Freq File      : " << p4_freqfile << "\n";
-    std::cout << "Antenna File      : " << antennafile << "\n";
-    std::cout << "Probe File        : " << probefile << "\n";
-    std::cout << "Total Data Prefix : " << datatotalprefix << "\n";
-    std::cout << "Output Directory  : " << outdir << "\n";
-
+    Chamber img_chamber(meshfile);
+    img_chamber.setupTx2RxMap(tx2rxfile);
     gmsh::finalize();
     return(0);
 }

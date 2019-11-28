@@ -7,7 +7,7 @@
 CC = clang # compiler to use
 CXX = clang++
 
-CXXFLAGS = -std=c++17 -O3 -Wall
+CXXFLAGS = -std=c++17 -O0 -g -Wall
 LIBS = -lgmsh -lboost_math_C99
 LDFLAGS =
 
@@ -17,14 +17,14 @@ SRCS := $(wildcard *.cpp)
 BINS := $(SRCS:%.cpp=%)
 
 # My A1 program depends on A1.o and mom_driver.o
-A3: A3.o ../A1/mom_driver.o
-	@echo "Building application A3"
-	${CXX} ${CXXFLAGS} ${LIBS} ${LDFLAGS} -o A3.out A3.o ../A1/mom_driver.o #Build A1 from its dependencies
+A4: A4.o ../A1/mom_driver.o
+	@echo "Building application A4"
+	${CXX} ${CXXFLAGS} ${LIBS} ${LDFLAGS} -o A4.out A4.o ../A1/mom_driver.o #Build A1 from its dependencies
 
 # My A1.o file depends on A1.cpp
-A3.o: A3.cpp
-	@echo "Building object file A3"
-	${CXX} ${CXXFLAGS} -c -o A3.o A3.cpp
+A4.o: A4.cpp
+	@echo "Building object file A4"
+	${CXX} ${CXXFLAGS} -c -o A4.o A4.cpp
 # CXX and CXXFLAGS are special variables. make will use them to
 # build A1.o. make is smart! I just need to tell it dependencies
 

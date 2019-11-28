@@ -169,6 +169,7 @@ public:
     void setTarget(const std::string& targetfile);
     void setupAntennas(const std::string& antennafile);
     void setupProbes(const std::string& probefile);
+    void setupTx2RxMap(const std::string& mapfile);
     void setFrequencies(const std::string& freqfile);
     void calcDomainEzInc(void);
     void calcDomainEzTot(void);
@@ -213,6 +214,7 @@ public:
     Eigen::FullPivLU<Eigen::MatrixXcd> LU_L;
     std::vector<Antenna> antennas;
     std::vector<Probe> probes;
+    std::vector<std::vector<std::vector<int> > > tx2rx;
     Eigen::MatrixXd probe_points;
     Mesh mesh;
     Target target;
