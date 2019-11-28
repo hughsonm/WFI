@@ -416,7 +416,6 @@ void Chamber::A3P3(
         }
     }
 
-
     auto n_data{0};
     for(auto& vec : Ez_sct_meas){
         assert(vec.size() == antennas.size());
@@ -426,70 +425,6 @@ void Chamber::A3P3(
             n_data += field_size;
         }
     }
-
-    // for(auto ifreq{0}; ifreq<frequencies.size();++ifreq)
-    // {
-    //     // Check for scattered data at probes
-    //     if(not(Ez_sct_meas[ifreq].size()==antennas.size())){
-    //         if(not(Ez_tot_meas[ifreq].size()==antennas.size())){
-    //             std::cerr << "Supplied scattered data have " << Ez_tot_meas[ifreq].size() << " transmitters.\n";
-    //             std::cerr << "I have "<<antennas.size() << " antennas\n";
-    //             std::cerr << "Read measured data before calling A3P3 please?\n";
-    //         } else{
-    //             calcDataEzInc();
-    //             Ez_sct_meas[ifreq].resize(Ez_tot_meas[ifreq].size());
-    //             for(auto ii{0}; ii<Ez_tot_meas[ifreq].size(); ++ii){
-    //                 Ez_sct_meas[ifreq][ii].setVals(
-    //                     Ez_tot_meas[ifreq][ii].getValRef()-Ez_inc_d[ifreq][ii].getValRef()
-    //                 );
-    //             }
-    //         }
-    //     }
-    //
-    //     bool all_fields_correct_size{true};
-    //     for(auto& ff : Ez_sct_meas[ifreq]){
-    //         all_fields_correct_size &= (ff.getValRef().size()==probes.size());
-    //     }
-    //     if(not(all_fields_correct_size)){
-    //         std::cerr << "Supplied field data do not match number of probes\n";
-    //         assert(false);
-    //     }
-    //
-    //
-    //
-    //     assert(1e-10 < std::abs(k2_bs[ifreq]));
-    //
-    //     double k_b{(std::sqrt(k2_bs[ifreq])).real()};
-    //
-    //
-    //     auto chi_hat_ptr{0};
-    //
-    //     std::complex<double> j_imag(0,1);
-    //     for(auto tt{0}; tt<antennas.size(); ++tt){
-    //         Eigen::Vector3d aa{antennas[tt].direction};
-    //         aa /= aa.norm();
-    //         const Eigen::VectorXcd & field_vals_for_tx{Ez_sct_meas[ifreq][tt].getValRef()};
-    //         for(auto pp{0}; pp<probes.size(); ++pp){
-    //             const Eigen::Vector3d rp{probes[pp].location};
-    //             const auto rp_dist{rp.norm()};
-    //             const Eigen::Vector3d ss{rp/rp_dist};
-    //             const Eigen::Vector3d qq{aa-ss};
-    //             const auto cc{
-    //                 k2_bs[ifreq]*
-    //                 (1.0-j_imag)*
-    //                 std::exp(-j_imag*k_b*rp_dist)/
-    //                 4.0/
-    //                 std::sqrt(M_PI*k_b*rp_dist)
-    //             };
-    //             const auto kx{qq(0)*k_b};
-    //             const auto ky{qq(1)*k_b};
-    //             const auto kz{field_vals_for_tx(pp)/cc};
-    //             kpts(chi_hat_ptr,0)=kx;
-    //             kpts(chi_hat_ptr,1)=ky;
-    //             kvals(chi_hat_ptr++) = kz;
-    //         }
-    //     }
-    // }
 
     fillKSpace(
         kpts,
