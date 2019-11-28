@@ -1545,19 +1545,6 @@ void Chamber::fillKSpace(
                 } else {
                     assert(false);
                 }
-                // Eigen::Vector3d qq{rk_hat+rt_hat};
-                // auto cc{
-                //     -j_imag*omega*std::exp(
-                //         -j_imag*omega/CNAUGHT*(
-                //             rk_norm+rt_norm
-                //         )/
-                //         (
-                //             8*CNAUGHT*M_PI*std::sqrt(
-                //                 rk_norm*rt_norm
-                //             )
-                //         )
-                //     )
-                // };
                 auto kx{kf*qq(0)};
                 auto ky{kf*qq(1)};
                 auto kz{field_for_tx(irx)/cc};
@@ -1568,9 +1555,11 @@ void Chamber::fillKSpace(
             }
         }
     }
-
 }
 
+void Chamber::bornIterativeMethod(){
+    
+}
 
 
 

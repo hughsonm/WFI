@@ -195,7 +195,10 @@ public:
         Eigen::VectorXcd& kvals,
         Eigen::VectorXcd& chi
     );
-    void A3P4(std::string freqfile);
+    void A3P4(
+        std::string freqfile
+    );
+    void bornIterativeMethod();
     void readMeasuredData(
         std::string dataprefix,
         double noise_pct
