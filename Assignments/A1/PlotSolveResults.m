@@ -1,13 +1,16 @@
 clearvars;
 
 ITX = 1;
-FREQ = 1E9;
 CNAUGHT = 2.9979E8;
+
+FREQ_IDX = 5;
+freqs =     dlmread('A1Freqs.txt');
+FREQ = freqs(FREQ_IDX);
 K_B = (2*pi*FREQ)/CNAUGHT;
 
 LAMBDA = CNAUGHT/FREQ;
 
-DATADIR = 'A1out';
+DATADIR = 'A1Multi';
 
 tri =       ReadCppMatrixFromFile([DATADIR '/tri_tri.txt']);
 pts =       ReadCppMatrixFromFile([DATADIR '/tri_pts.txt']);
@@ -15,18 +18,18 @@ centroids = ReadCppMatrixFromFile([DATADIR '/tri_centroids.txt']);
 areas =     ReadCppVectorFromFile([DATADIR '/tri_areas.txt']);
 eq_radii = sqrt(areas/pi);
 
-Ez_inc =    ReadCppMatrixFromFile([DATADIR '/Ez_inc_0.txt']);
-Ez_sct =    ReadCppMatrixFromFile([DATADIR '/Ez_sct_0.txt']);
-Ez_tot =    ReadCppMatrixFromFile([DATADIR '/Ez_tot_0.txt']);
+Ez_inc =    ReadCppMatrixFromFile([DATADIR '/Ez_inc_' num2str(FREQ_IDX-1) '.txt']);
+Ez_sct =    ReadCppMatrixFromFile([DATADIR '/Ez_sct_' num2str(FREQ_IDX-1) '.txt']);
+Ez_tot =    ReadCppMatrixFromFile([DATADIR '/Ez_tot_' num2str(FREQ_IDX-1) '.txt']);
 
 eps_r =        ReadCppVectorFromFile([DATADIR '/eps_r.txt']);
 k2 = eps_r*K_B^2;
 
 
 probes =    ReadCppMatrixFromFile([DATADIR '/probe_xyz.txt']);
-Ez_inc_p =  ReadCppMatrixFromFile([DATADIR '/Ez_inc_d_0.txt']);
-Ez_sct_p =  ReadCppMatrixFromFile([DATADIR '/Ez_sct_d_0.txt']);
-Ez_tot_p =  ReadCppMatrixFromFile([DATADIR '/Ez_tot_d_0.txt']);
+Ez_inc_p =  ReadCppMatrixFromFile([DATADIR '/Ez_inc_d_' num2str(FREQ_IDX-1) '.txt']);
+Ez_sct_p =  ReadCppMatrixFromFile([DATADIR '/Ez_sct_d_' num2str(FREQ_IDX-1) '.txt']);
+Ez_tot_p =  ReadCppMatrixFromFile([DATADIR '/Ez_tot_d_' num2str(FREQ_IDX-1) '.txt']);
 
 
 tags = tri(:,end);
@@ -42,7 +45,7 @@ colorbar;axis image; view(2);
 
 
 subplot(2,2,2);
-trisurf(tri,pts(:,1),pts(:,2),pts(:,3),abs(Ez_inc(:,ITX)),...
+trisurf(tri,pts(:,1),pts(:,2),pts(:,3),real(Ez_inc(:,ITX)),...
     'LineStyle','None');
 title('|E_z^{inc}|');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
@@ -51,7 +54,7 @@ axis image;
 view(2);
 
 subplot(2,2,3);
-trisurf(tri,pts(:,1),pts(:,2),pts(:,3),abs(Ez_sct(:,ITX)),...
+trisurf(tri,pts(:,1),pts(:,2),pts(:,3),real(Ez_sct(:,ITX)),...
     'LineStyle','None');
 title('|E_z^{sct}|');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');
@@ -60,7 +63,7 @@ axis image;
 view(2);
 
 subplot(2,2,4);
-trisurf(tri,pts(:,1),pts(:,2),pts(:,3),abs(Ez_tot(:,ITX)),...
+trisurf(tri,pts(:,1),pts(:,2),pts(:,3),real(Ez_tot(:,ITX)),...
     'LineStyle','None');
 title('|E_z^{tot}|');
 xlabel('x [m]');ylabel('y [m]');zlabel('z [m]');

@@ -57,7 +57,6 @@ static void tift(
         for(auto index{0};index < 3; ++index){
             auto chi_hat_index{tri(tt,index)};
             chi_hat_on_tri += xhat(chi_hat_index);
-
         }
         chi_hat_on_tri /= 3.0;
         for(auto ii{0}; ii<xpts.rows(); ++ii){
@@ -396,6 +395,28 @@ void Chamber::A3P3(
         assert(false);
     }
 
+    // Make scattered data from total data.
+    if(not(Ez_tot_meas.size()==frequencies.size())){
+        std::cerr << "Missing total field data\n";
+        assert(false);
+    } else{
+        calcDataEzInc();
+        Ez_sct_meas.resize(Ez_tot_meas.size());
+        auto vf_idx{0};
+        for(auto& vf:Ez_tot_meas){
+            auto ff_idx{0};
+            Ez_sct_meas[vf_idx].resize(vf.size());
+            for(auto& ff:vf){
+                Ez_sct_meas[vf_idx][ff_idx].setVals(
+                    ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()
+                );
+                ff_idx++;
+            }
+            vf_idx++;
+        }
+    }
+
+
     auto n_data{0};
     for(auto& vec : Ez_sct_meas){
         assert(vec.size() == antennas.size());
@@ -578,8 +599,9 @@ void Chamber::readMeasuredData(
 {
     for(auto ifreq{0}; ifreq<frequencies.size();++ifreq){
         Eigen::MatrixXcd tot_matrix;
+        std::string datafilename{dataprefix+std::to_string(ifreq)+".txt"};
         ReadMatrixFromFile(
-            dataprefix + std::to_string(ifreq) + ".txt",
+            datafilename,
             tot_matrix
         );
         std::complex<double> max_tot{0.0};
@@ -1271,8 +1293,6 @@ void Chamber::setFrequencies(
 
 void Chamber::calcDomainEzInc(void)
 {
-
-
     Ez_inc.resize(0);
     for(auto& freq : frequencies){
         std::vector<Field> vec_of_field_for_freq;
@@ -1450,6 +1470,7 @@ void Chamber::calcDataEzTot(void)
             Eigen::VectorXcd Ez_tot_d_t{Ez_sct_d_t+Ez_inc_d_t};
             Ez_tot_d[ifreq][tt].setVals(Ez_tot_d_t);
         }
+
     }
 
 }
@@ -1484,9 +1505,9 @@ void Chamber::fillKSpace(
             auto field_size{field_for_tx.size()};
             Eigen::Vector3d rt;
             if(antennas[itx].style == LineSource){
-                rt = antennas[itx].direction;
-            } else if(antennas[itx].style==PlaneWave){
                 rt = antennas[itx].location;
+            } else if(antennas[itx].style==PlaneWave){
+                rt = antennas[itx].direction;
             } else {
                 assert(false);
             }

@@ -9,7 +9,7 @@ double rand_double(double low, double high){
     return(low+(high-low)*rr);
 }
 
-bool make_outdir(std::string dirname){
+bool make_outdir(std::string& dirname){
     bool success{false};
     if(not (dirname.back()=='/' or dirname.back()=='\\'))
     {

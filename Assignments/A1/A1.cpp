@@ -22,6 +22,7 @@ int main (int argc, char **argv)
     assert(argc == 7);
     Chamber img_chamber(argv[1]);
 
+
     img_chamber.setTarget(argv[2]);
 
     img_chamber.setupAntennas(argv[3]);
@@ -68,7 +69,7 @@ int main (int argc, char **argv)
             fv
         );
         WriteMatrixToFile(
-            outdir + "Ez_inc_" + std::to_string(fv_count) + ".txt",
+            outdir + "Ez_inc_" + std::to_string(fv_count++) + ".txt",
             M_Ez_out
         );
     }
@@ -80,7 +81,7 @@ int main (int argc, char **argv)
             fv
         );
         WriteMatrixToFile(
-            outdir + "Ez_sct_" + std::to_string(fv_count) + ".txt",
+            outdir + "Ez_sct_" + std::to_string(fv_count++) + ".txt",
             M_Ez_out
         );
     }
@@ -92,7 +93,7 @@ int main (int argc, char **argv)
             fv
         );
         WriteMatrixToFile(
-            outdir + "Ez_tot_" + std::to_string(fv_count) + ".txt",
+            outdir + "Ez_tot_" + std::to_string(fv_count++) + ".txt",
             M_Ez_out
         );
     }
@@ -129,7 +130,7 @@ int main (int argc, char **argv)
             fv
         );
         WriteMatrixToFile(
-            outdir + "Ez_inc_d_" + std::to_string(fv_count) + ".txt",
+            outdir + "Ez_inc_d_" + std::to_string(fv_count++) + ".txt",
             M_Ez_out
         );
     }
@@ -141,7 +142,7 @@ int main (int argc, char **argv)
             fv
         );
         WriteMatrixToFile(
-            outdir + "Ez_sct_d_" + std::to_string(fv_count) + ".txt",
+            outdir + "Ez_sct_d_" + std::to_string(fv_count++) + ".txt",
             M_Ez_out
         );
     }
@@ -153,7 +154,7 @@ int main (int argc, char **argv)
             fv
         );
         WriteMatrixToFile(
-            outdir + "Ez_tot_d_" + std::to_string(fv_count) + ".txt",
+            outdir + "Ez_tot_d_" + std::to_string(fv_count++) + ".txt",
             M_Ez_out
         );
     }
