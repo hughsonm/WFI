@@ -1523,6 +1523,92 @@ void Chamber::setupTx2RxMap(
 }
 
 void Chamber::bornIterativeMethod(){
+
+    //For each frequency, make sure I have my G_b_dom and G_b_data.
+    assert(frequencies.size());
+    assert(probes.size());
+    assert(antennas.size());
+
+    assert(Ez_tot_meas.size());
+    calcDataEzInc();
+    Ez_sct_meas.resize(Ez_tot_meas.size());
+    auto vf_idx{0};
+    for(auto& vf:Ez_tot_meas){
+        auto ff_idx{0};
+        Ez_sct_meas[vf_idx].resize(vf.size());
+        for(auto& ff:vf){
+            
+            Ez_sct_meas[vf_idx][ff_idx].setVals(
+                ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()
+            );
+            ff_idx++;
+        }
+        vf_idx++;
+    }
+
+
+    G_b_domain_by_freq.resize(frequencies.size());
+
+    for(auto ifreq{0};ifreq<frequencies.size();ifreq++){
+        mesh.buildDataGreen(
+            G_b_data_by_freq[ifreq],
+            k2_bs[ifreq],
+            probe_points
+        );
+        mesh.buildDomainGreen(
+            G_b_domain_by_freq[ifreq],
+            k2_bs[ifreq]
+        );
+    }
+
+    // Build all my Ms matrices
+    M_s_data.resize(frequencies.size());
+    for(auto& M_s_vec : M_s_data){
+        M_s_vec.resize(antennas.size());
+        for(auto& M_s : M_s_vec){
+            M_s.resize(
+                probes.size(),
+                probes.size()
+            );
+        }
+    }
+
+    for(auto ifreq{0}; ifreq<tx2rx.size(); ++ifreq){
+        for(auto itx{0}; itx < tx2rx[ifreq].size(); ++itx){
+            auto row_ptr{0};
+            M_s_data[ifreq][itx].resize(
+                tx2rx[ifreq][itx].size(),
+                probes.size()
+            );
+            M_s_data[ifreq][itx].setZero();
+            for(auto& rx_idx : tx2rx[ifreq][itx]){
+                M_s_data[ifreq][itx](row_ptr++,rx_idx)=1.0;
+            }
+        }
+    }
+
+
+    auto D_rows{0};
+    auto D_cols{frequencies.size()*antennas.size()*mesh.centroids.rows()};
+    for(auto& M_s_vec : M_s_data){
+        for(auto& M_s:M_s_vec){
+            D_rows += M_s.rows();
+        }
+    }
+    Eigen::MatrixXcd D(D_rows,D_cols);
+    auto D_row_ptr{0};
+    auto D_col_ptr{0};
+    for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
+        for(auto itx{0};itx<antennas.size();++itx){
+            Eigen::MatrixXcd MkG{
+                M_s_data[ifreq][itx]*k2_bs[ifreq]*G_b_data_by_freq[ifreq]
+            };
+            D.block(D_row_ptr,D_col_ptr,MkG.rows(),MkG.cols())=MkG;
+            D_row_ptr += MkG.rows();
+            D_col_ptr += MkG.cols();
+        }
+    }
+    //
 }
 
 

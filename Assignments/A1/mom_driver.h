@@ -209,6 +209,10 @@ public:
     //Eigen::MatrixXcd G_b_domain;
     std::vector<Eigen::MatrixXcd> G_b_domain_by_freq;
     std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
+    std::vector<std::vector<Eigen::MatrixXd>>  M_s_data;
+    // For each frequency, for each transmitter, we have a M_s matrix which
+    // selects a subset of all of the measurements on the measurement
+    // surface.
     // L = (I+G*Chi);
     std::vector<Eigen::MatrixXcd> L_domain_by_freq;
     Eigen::FullPivLU<Eigen::MatrixXcd> LU_L;

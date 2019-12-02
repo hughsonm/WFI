@@ -43,11 +43,19 @@ bool make_outdir(std::string& dirname){
 int main(int argc, char** argv){
     gmsh::initialize();
     std::string meshfile{argv[1]};
-    std::string tx2rxfile{argv[2]};
+    std::string antennafile{argv[2]};
+    std::string probefile{argv[3]};
+    std::string tx2rxfile{argv[4]};
+    std::string bimfreqfile{argv[5]};
+    std::string total_data_prefix{argv[6]};
+
     std::cout << "Mesh File     : " << meshfile << "\n";
 
     Chamber img_chamber(meshfile);
+    img_chamber.setupAntennas(antennafile);
+    img_chamber.setupProbes(probefile);
     img_chamber.setupTx2RxMap(tx2rxfile);
+    img_chamber.readMeasuredData(total_data_prefix,10);
     gmsh::finalize();
     return(0);
 }
