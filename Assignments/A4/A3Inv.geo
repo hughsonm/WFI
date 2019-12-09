@@ -4,7 +4,7 @@ wavelength = cc/ff;
 
 cl = wavelength/10;
 
-dom_rad = wavelength*2;
+dom_rad = 20e-2;
 //+
 Point(1) = {dom_rad, dom_rad, 0, cl};
 //+

@@ -1,0 +1,72 @@
+FrequencyIndex	1	TransmitterIndex	1	ReceiverIndices	2	3	5	7	8	9	11	12	13	14	15	16	17	18	19	20	21	22	23
+FrequencyIndex	1	TransmitterIndex	2	ReceiverIndices	1	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	23	24
+FrequencyIndex	1	TransmitterIndex	3	ReceiverIndices	1	2	4	5	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	4	ReceiverIndices	1	2	3	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	5	ReceiverIndices	1	2	3	4	6	7	8	9	10	11	12	13	14	15	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	6	ReceiverIndices	1	2	4	5	7	8	9	10	11	12	13	14	16	17	18	19	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	7	ReceiverIndices	1	2	3	5	6	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	8	ReceiverIndices	1	2	3	4	6	7	9	10	11	12	13	14	15	16	17	18	19	20	21	22	24
+FrequencyIndex	1	TransmitterIndex	9	ReceiverIndices	1	3	4	5	6	7	8	10	11	12	13	14	15	16	18	19	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	10	ReceiverIndices	1	2	3	4	5	6	7	9	11	13	14	15	17	18	19	20	22	23	24
+FrequencyIndex	1	TransmitterIndex	11	ReceiverIndices	1	2	3	4	5	6	7	8	10	12	14	16	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	12	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	13	14	15	16	17	18	19	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	13	ReceiverIndices	1	2	3	4	5	7	8	9	10	11	12	15	16	17	18	20	22	23
+FrequencyIndex	1	TransmitterIndex	14	ReceiverIndices	1	2	3	4	5	6	8	9	10	11	12	13	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	15	ReceiverIndices	1	2	4	5	6	7	8	9	10	11	13	14	16	17	18	19	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	16	ReceiverIndices	1	3	4	6	7	8	9	10	11	12	13	14	15	17	18	19	20	22	23	24
+FrequencyIndex	1	TransmitterIndex	17	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	18	19	20	21	22
+FrequencyIndex	1	TransmitterIndex	18	ReceiverIndices	1	2	3	5	6	7	8	9	10	11	12	13	14	15	16	17	19	20	21	22	24
+FrequencyIndex	1	TransmitterIndex	19	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	20	21	22	23	24
+FrequencyIndex	1	TransmitterIndex	20	ReceiverIndices	1	2	3	4	6	7	9	10	11	12	13	14	15	16	17	18	19	21	22	24
+FrequencyIndex	1	TransmitterIndex	21	ReceiverIndices	2	3	4	5	6	7	8	9	10	11	12	13	14	15	17	18	19	20	22	23	24
+FrequencyIndex	1	TransmitterIndex	22	ReceiverIndices	1	2	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	23	24
+FrequencyIndex	1	TransmitterIndex	23	ReceiverIndices	1	2	3	4	6	7	8	9	11	12	13	14	15	17	18	20	21	24
+FrequencyIndex	1	TransmitterIndex	24	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23
+FrequencyIndex	2	TransmitterIndex	1	ReceiverIndices	2	3	4	5	6	7	8	9	11	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	2	ReceiverIndices	1	3	4	5	6	7	8	9	10	11	12	13	14	15	17	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	3	ReceiverIndices	1	2	4	5	6	7	8	9	11	13	14	16	18	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	4	ReceiverIndices	1	2	3	5	6	7	8	9	10	11	12	13	14	15	16	18	19	20	22	23	24
+FrequencyIndex	2	TransmitterIndex	5	ReceiverIndices	1	2	3	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	6	ReceiverIndices	2	3	4	5	7	9	10	11	12	13	14	15	16	17	18	19	20	21	22	24
+FrequencyIndex	2	TransmitterIndex	7	ReceiverIndices	1	2	4	5	6	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	8	ReceiverIndices	1	2	3	5	6	7	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	9	ReceiverIndices	1	3	5	6	7	8	10	11	12	13	14	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	10	ReceiverIndices	1	2	3	4	5	6	7	8	9	11	12	13	14	15	17	18	19	20	21	22	24
+FrequencyIndex	2	TransmitterIndex	11	ReceiverIndices	1	2	3	4	5	6	7	8	9	12	13	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	12	ReceiverIndices	2	4	5	6	8	9	10	11	13	14	15	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	13	ReceiverIndices	1	3	4	5	6	7	8	9	15	16	17	18	19	20	21	22	23
+FrequencyIndex	2	TransmitterIndex	14	ReceiverIndices	1	2	3	4	6	8	9	10	11	12	13	15	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	15	ReceiverIndices	1	3	4	6	7	8	9	10	11	12	13	16	17	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	16	ReceiverIndices	1	2	5	6	7	8	9	10	12	13	14	15	17	18	20	21	22	23
+FrequencyIndex	2	TransmitterIndex	17	ReceiverIndices	1	2	5	6	7	9	10	11	12	13	16	18	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	18	ReceiverIndices	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	19	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	19	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	20	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	20	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	13	14	15	16	17	18	19	21	22	23	24
+FrequencyIndex	2	TransmitterIndex	21	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	18	19	20	22	23	24
+FrequencyIndex	2	TransmitterIndex	22	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	18	19	20	23	24
+FrequencyIndex	2	TransmitterIndex	23	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	12	13	15	16	17	19	20	21	22	24
+FrequencyIndex	2	TransmitterIndex	24	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	14	15	16	17	18	19	20	21	22	23
+FrequencyIndex	3	TransmitterIndex	1	ReceiverIndices	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	2	ReceiverIndices	1	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	23	24
+FrequencyIndex	3	TransmitterIndex	3	ReceiverIndices	1	2	4	5	6	7	8	9	10	11	12	13	14	15	16	18	19	20	22	23	24
+FrequencyIndex	3	TransmitterIndex	4	ReceiverIndices	1	3	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	5	ReceiverIndices	1	2	3	4	6	7	8	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	6	ReceiverIndices	1	2	3	4	5	7	8	10	11	12	13	14	15	16	17	18	19	20	21	23
+FrequencyIndex	3	TransmitterIndex	7	ReceiverIndices	1	2	4	5	8	9	10	11	12	14	15	17	18	19	20	21	22	23
+FrequencyIndex	3	TransmitterIndex	8	ReceiverIndices	1	2	3	4	5	6	7	9	10	12	13	14	15	17	18	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	9	ReceiverIndices	1	2	3	4	5	6	7	8	10	11	12	14	15	16	17	18	19	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	10	ReceiverIndices	1	2	3	4	5	6	7	9	11	13	14	15	16	17	18	19	20	21	23	24
+FrequencyIndex	3	TransmitterIndex	11	ReceiverIndices	1	2	3	5	6	7	9	10	12	13	14	17	18	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	12	ReceiverIndices	1	3	4	5	6	7	8	9	11	13	14	15	16	17	18	19	20	21	22
+FrequencyIndex	3	TransmitterIndex	13	ReceiverIndices	1	2	4	5	6	7	8	9	10	11	12	14	15	16	17	18	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	14	ReceiverIndices	2	3	4	5	6	8	9	10	11	12	13	15	16	17	18	19	20	21	23	24
+FrequencyIndex	3	TransmitterIndex	15	ReceiverIndices	1	2	3	4	5	6	7	8	9	11	12	13	14	16	17	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	16	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	17	18	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	17	ReceiverIndices	1	2	3	4	5	7	8	9	10	11	12	13	14	15	16	18	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	18	ReceiverIndices	1	2	3	4	5	6	7	8	10	11	12	13	14	15	16	17	19	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	19	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	14	15	16	17	18	20	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	20	ReceiverIndices	1	3	4	6	7	8	9	12	14	15	16	17	18	19	21	22	23	24
+FrequencyIndex	3	TransmitterIndex	21	ReceiverIndices	1	2	3	4	5	6	7	8	9	11	12	13	14	16	17	18	19	22	23
+FrequencyIndex	3	TransmitterIndex	22	ReceiverIndices	1	2	3	4	5	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	23	24
+FrequencyIndex	3	TransmitterIndex	23	ReceiverIndices	1	3	5	6	8	11	12	13	14	15	16	17	18	19	20	22	24
+FrequencyIndex	3	TransmitterIndex	24	ReceiverIndices	1	2	3	4	5	6	7	8	9	10	11	12	14	15	16	17	18	19	20	21	22

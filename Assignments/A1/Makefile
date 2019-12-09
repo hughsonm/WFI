@@ -7,7 +7,7 @@
 CC = clang # compiler to use
 CXX = clang++
 
-CXXFLAGS = -O3 -std=c++17 -march=native -msse4 -ffast-math -funroll-loops -Wall
+CXXFLAGS = -O0 -g -std=c++17 -march=native -msse4 -ffast-math -funroll-loops -Wall
 LIBS = -lgmsh -lboost_math_C99
 LDFLAGS =
 

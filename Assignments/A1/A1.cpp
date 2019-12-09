@@ -21,20 +21,12 @@ int main (int argc, char **argv)
     gmsh::initialize();
     assert(argc == 7);
     Chamber img_chamber(argv[1]);
-
-
     img_chamber.setTarget(argv[2]);
-
     img_chamber.setupAntennas(argv[3]);
-
     img_chamber.setFrequencies(argv[4]);
-
     img_chamber.setupProbes(argv[5]);
-
     img_chamber.calcDomainEzTot();
-
     img_chamber.calcDataEzTot();
-
     std::string outdir(argv[6]);
     if(not (outdir.back()=='/' or outdir.back()=='\\'))
     {

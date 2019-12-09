@@ -80,6 +80,17 @@ public:
     Eigen::MatrixXd tri;
     Eigen::MatrixXd centroids;
     Eigen::VectorXd areas;
+    void WriteMeshToFile(std::string outdir){
+        if(not(outdir.back()=='/' || outdir.back()=='\\')) outdir += "/";
+        WriteMatrixToFile(
+            outdir + "pts.txt",
+            points
+        );
+        WriteMatrixToFile(
+            outdir+"tri.txt",
+            tri
+        );
+    };
     bool ready{false};
 };
 
@@ -206,7 +217,9 @@ public:
     );
     std::vector<double> frequencies;
     std::vector<std::complex<double> > k2_bs;
-    //Eigen::MatrixXcd G_b_domain;
+    // My G operators perform the integration of the product of a vector with
+    // a green's function.
+    // u^s = k_b^2*G*w. That's how these guys work
     std::vector<Eigen::MatrixXcd> G_b_domain_by_freq;
     std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
     std::vector<std::vector<Eigen::MatrixXd>>  M_s_data;
@@ -215,7 +228,6 @@ public:
     // surface.
     // L = (I+G*Chi);
     std::vector<Eigen::MatrixXcd> L_domain_by_freq;
-    Eigen::FullPivLU<Eigen::MatrixXcd> LU_L;
     std::vector<Antenna> antennas;
     std::vector<Probe> probes;
     std::vector<std::vector<std::vector<int> > > tx2rx;

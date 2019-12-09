@@ -15,7 +15,6 @@
 #include <boost/math/special_functions/hankel.hpp>
 #include <delaunator.hpp>
 
-
 static void delaunay(
     Eigen::MatrixXi & tri,
     const Eigen::MatrixXd & pts
@@ -100,10 +99,14 @@ void Antenna::getEz(
             }
             for(int ipt = 0; ipt < Ez.size(); ipt++)
             {
-                Ez(ipt) = -j_imag/4.0*boost::math::cyl_hankel_2(
-                    0,
-                    k*distances(ipt)
-                );
+                if(1e-10 < std::abs(distances(ipt))){
+                    Ez(ipt) = -j_imag/4.0*boost::math::cyl_hankel_2(
+                        0,
+                        k*distances(ipt)
+                    );
+                } else{
+                    Ez(ipt) = 0;
+                }
             }
             break;
         }
@@ -1308,6 +1311,7 @@ void Chamber::calcDomainEzTot(void)
 
         std::cerr << "filled,";
         // Perform LU factorization of domain L operator
+        Eigen::FullPivLU<Eigen::MatrixXcd> LU_L;
         LU_L.compute(L_domain_by_freq[ifreq]);
         std::cerr << "factored" << std::endl;
 
@@ -1515,7 +1519,10 @@ void Chamber::setupTx2RxMap(
             } else if(reader.eof()){
                 break;
             } else{
-                tx2rx[ff_index][tx_index].push_back(std::stoi(ins));
+                int rx_index{std::stoi(ins)};
+                rx_index--;
+                assert(0<=rx_index);
+                tx2rx[ff_index][tx_index].push_back(rx_index);
             }
         }
     }
@@ -1528,6 +1535,7 @@ void Chamber::bornIterativeMethod(){
     assert(frequencies.size());
     assert(probes.size());
     assert(antennas.size());
+    assert(tx2rx.size() == frequencies.size());
 
     assert(Ez_tot_meas.size());
     calcDataEzInc();
@@ -1537,7 +1545,7 @@ void Chamber::bornIterativeMethod(){
         auto ff_idx{0};
         Ez_sct_meas[vf_idx].resize(vf.size());
         for(auto& ff:vf){
-            
+
             Ez_sct_meas[vf_idx][ff_idx].setVals(
                 ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()
             );
@@ -1587,28 +1595,176 @@ void Chamber::bornIterativeMethod(){
         }
     }
 
+    // D is the matrix that gets scattered field predictions from the current
+    // guess for chi and the current guess for Utot.
+    // D includes the restriction operators which ignore some receivers for each
+    // transmitter.
+    // D is a bit block-diagonal matrix.
+    // U^sct = D*(vertcat(Utot))*chi.
+    // auto D_rows{0};
+    // auto D_cols{frequencies.size()*antennas.size()*mesh.centroids.rows()};
+    // for(auto& M_s_vec : M_s_data){
+    //     for(auto& M_s:M_s_vec){
+    //         D_rows += M_s.rows();
+    //     }
+    // }
+    // Eigen::MatrixXcd D(D_rows,D_cols);
+    // auto D_row_ptr{0};
+    // auto D_col_ptr{0};
+    // for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
+    //     for(auto itx{0};itx<antennas.size();++itx){
+    //         Eigen::MatrixXcd MkG{
+    //             M_s_data[ifreq][itx]*k2_bs[ifreq]*G_b_data_by_freq[ifreq]
+    //         };
+    //         D.block(D_row_ptr,D_col_ptr,MkG.rows(),MkG.cols())=MkG;
+    //         D_row_ptr += MkG.rows();
+    //         D_col_ptr += MkG.cols();
+    //     }
+    // }
 
-    auto D_rows{0};
-    auto D_cols{frequencies.size()*antennas.size()*mesh.centroids.rows()};
-    for(auto& M_s_vec : M_s_data){
-        for(auto& M_s:M_s_vec){
-            D_rows += M_s.rows();
-        }
-    }
-    Eigen::MatrixXcd D(D_rows,D_cols);
-    auto D_row_ptr{0};
-    auto D_col_ptr{0};
-    for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
-        for(auto itx{0};itx<antennas.size();++itx){
-            Eigen::MatrixXcd MkG{
-                M_s_data[ifreq][itx]*k2_bs[ifreq]*G_b_data_by_freq[ifreq]
-            };
-            D.block(D_row_ptr,D_col_ptr,MkG.rows(),MkG.cols())=MkG;
-            D_row_ptr += MkG.rows();
-            D_col_ptr += MkG.cols();
-        }
-    }
+
+    // Eigen::MatrixXcd Utot_concat(D_col_ptr,n_cells);
+    // // use .asDiagonal
+    // auto utc_row_ptr{0};
+    // for(auto& vec_of_tot_fields : Ez_tot){
+    //     for(auto& tot_field : vec_of_tot_fields){
+    //         Utot_concat.block(
+    //             utc_row_ptr,0,
+    //             n_cells,n_cells
+    //         ) = tot_field.getValRef().asDiagonal();
+    //         utc_row_ptr += n_cells;
     //
+    //     }
+    // }
+    //
+    for(auto bim_iter{0};bim_iter<10;++bim_iter){
+        calcDomainEzTot();
+        auto n_cells{mesh.areas.size()};
+        auto total_data_count{0};
+        for(auto& tx_rx_map_at_freq : tx2rx){
+            for(auto& rx_list : tx_rx_map_at_freq){
+                total_data_count += rx_list.size();
+            }
+        }
+
+        std::cout << "Starting DU product\n";
+
+        auto du_row_ptr{0};
+        Eigen::MatrixXcd DU(total_data_count,n_cells);
+        for(auto ifreq{0};ifreq<Ez_tot.size();++ifreq){
+            for(auto itx{0};itx<Ez_tot[ifreq].size();++itx){
+                const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
+                DU.block(
+                    du_row_ptr,0,
+                    n_data_for_tx,n_cells
+                ) =
+                M_s_data[ifreq][itx]*
+                k2_bs[ifreq]*
+                G_b_data_by_freq[ifreq]*
+                Ez_tot[ifreq][itx].getValRef().asDiagonal();
+                du_row_ptr += n_data_for_tx;
+            }
+        }
+        std::cout << "Done DU product\n";
+
+        // Now get an svd from DU
+
+        std::cout << "Beginning SV decomposition...\n";
+
+        Eigen::BDCSVD<Eigen::MatrixXcd> SVD_DU;
+        SVD_DU.compute(
+            DU,
+            Eigen::DecompositionOptions::ComputeThinU|
+            Eigen::DecompositionOptions::ComputeThinV
+        );
+
+        std::cout << "Decomposition complete!\n";
+        std::cout << "starting file write\n";
+        WriteMatrixToFile(
+            "DU.txt",
+            DU
+        );
+        WriteMatrixToFile(
+            "SVD_U.txt",
+            SVD_DU.matrixU()
+        );
+        WriteMatrixToFile(
+            "SVD_V.txt",
+            SVD_DU.matrixV()
+        );
+        WriteVectorToFile(
+            "SVD_S.txt",
+            SVD_DU.singularValues()
+        );
+        std::cout << "Done file write\n";
+
+        std::cout << "Truncating SVD matrices...\n";
+        Eigen::VectorXd DU_singular_values{SVD_DU.singularValues()};
+        auto sing_val_idx{0};
+        for(
+            sing_val_idx=0;
+            sing_val_idx<DU_singular_values.size();
+            ++sing_val_idx
+        ){
+            if(DU_singular_values(sing_val_idx)<(DU_singular_values(0)*1e-1)){
+                std::cout << "Gonna use " << sing_val_idx << " singular values, out of " << DU_singular_values.size() << "\n";
+                break;
+            }
+        }
+        Eigen::MatrixXcd U_trunc{SVD_DU.matrixU()};
+        U_trunc = U_trunc.block(
+            0,0,
+            U_trunc.rows(),sing_val_idx
+        );
+
+        Eigen::MatrixXcd V_trunc{SVD_DU.matrixV()};
+        V_trunc = V_trunc.block(
+            0,0,
+            V_trunc.rows(),sing_val_idx
+        );
+
+        Eigen::VectorXcd S_trunc_vec{DU_singular_values.block(0,0,sing_val_idx,1)};
+        std::cout << "Done truncation\n";
+        std::cout << U_trunc.rows() << "," << U_trunc.cols() << "," << S_trunc_vec.rows() << "," << V_trunc.cols() << "," << V_trunc.rows() << "\n";
+
+        // Construct the big concatenation of measured data, masked with M_s_data.
+        std::cout << "Constructing concatenated data vector\n";
+        Eigen::VectorXcd Ez_sct_meas_masked(total_data_count);
+        auto Ez_meas_mask_ptr{0};
+        for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
+            for(auto itx{0};itx<antennas.size();++itx){
+                const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
+                Ez_sct_meas_masked.block(
+                    Ez_meas_mask_ptr,0,
+                    n_data_for_tx,1
+                ) = M_s_data[ifreq][itx]*Ez_sct_meas[ifreq][itx].getValRef();
+                Ez_meas_mask_ptr += n_data_for_tx;
+            }
+        }
+        std::cout << "Done constructing concatenated data vector\n";
+
+        // Use truncated SVD to solve for chi
+        std::cout << "Solving for chi, with truncated svd...\n";
+        const Eigen::MatrixXcd S_trunc_mat_inv{
+            S_trunc_vec.array().inverse().matrix().asDiagonal()
+        };
+        Eigen::VectorXcd chi_eps{
+            V_trunc*(
+                S_trunc_mat_inv*(
+                    U_trunc.adjoint()*Ez_sct_meas_masked
+                )
+            )
+        };
+        std::cout << "Done chi calculation.\n";
+        WriteVectorToFile(
+            "chi0.txt",
+            chi_eps
+        );
+        mesh.WriteMeshToFile("./");
+
+        // Now set the target, given chi:
+        target.eps_r.setVals((chi_eps.array()+1).matrix());
+    }
 }
 
 

@@ -52,10 +52,12 @@ int main(int argc, char** argv){
     std::cout << "Mesh File     : " << meshfile << "\n";
 
     Chamber img_chamber(meshfile);
+    img_chamber.setFrequencies(bimfreqfile);
     img_chamber.setupAntennas(antennafile);
     img_chamber.setupProbes(probefile);
     img_chamber.setupTx2RxMap(tx2rxfile);
     img_chamber.readMeasuredData(total_data_prefix,10);
+    img_chamber.bornIterativeMethod();
     gmsh::finalize();
     return(0);
 }
