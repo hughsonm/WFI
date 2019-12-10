@@ -221,6 +221,7 @@ public:
     // a green's function.
     // u^s = k_b^2*G*w. That's how these guys work
     std::vector<Eigen::MatrixXcd> G_b_domain_by_freq;
+    bool G_b_domains_ready{false};  
     std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
     std::vector<std::vector<Eigen::MatrixXd>>  M_s_data;
     // For each frequency, for each transmitter, we have a M_s matrix which

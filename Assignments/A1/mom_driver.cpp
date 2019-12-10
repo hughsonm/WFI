@@ -1264,7 +1264,7 @@ void Chamber::calcDataEzInc(void)
                 probe_points,
                 freq
             );
-            field_for_ant.setLocations(mesh.centroids);
+            field_for_ant.setLocations(probe_points);
             field_for_ant.setVals(ez_for_ant);
             vec_of_field_for_freq.push_back(field_for_ant);
         }
@@ -1545,10 +1545,14 @@ void Chamber::bornIterativeMethod(){
         auto ff_idx{0};
         Ez_sct_meas[vf_idx].resize(vf.size());
         for(auto& ff:vf){
-
+            // std::cout << ff.getValRef().transpose() << "\n";
+            // std::cout << Ez_inc_d[vf_idx][ff_idx].getValRef().transpose() << "\n";
             Ez_sct_meas[vf_idx][ff_idx].setVals(
                 ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()
             );
+            // std::cout << Ez_sct_meas[vf_idx][ff_idx].getValRef().transpose() << "\n";
+            // const Eigen::VectorXcd dd{ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()};
+            // std::cout << "sct norm = " << dd.norm() << "\n";
             ff_idx++;
         }
         vf_idx++;
@@ -1594,49 +1598,7 @@ void Chamber::bornIterativeMethod(){
             }
         }
     }
-
-    // D is the matrix that gets scattered field predictions from the current
-    // guess for chi and the current guess for Utot.
-    // D includes the restriction operators which ignore some receivers for each
-    // transmitter.
-    // D is a bit block-diagonal matrix.
-    // U^sct = D*(vertcat(Utot))*chi.
-    // auto D_rows{0};
-    // auto D_cols{frequencies.size()*antennas.size()*mesh.centroids.rows()};
-    // for(auto& M_s_vec : M_s_data){
-    //     for(auto& M_s:M_s_vec){
-    //         D_rows += M_s.rows();
-    //     }
-    // }
-    // Eigen::MatrixXcd D(D_rows,D_cols);
-    // auto D_row_ptr{0};
-    // auto D_col_ptr{0};
-    // for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
-    //     for(auto itx{0};itx<antennas.size();++itx){
-    //         Eigen::MatrixXcd MkG{
-    //             M_s_data[ifreq][itx]*k2_bs[ifreq]*G_b_data_by_freq[ifreq]
-    //         };
-    //         D.block(D_row_ptr,D_col_ptr,MkG.rows(),MkG.cols())=MkG;
-    //         D_row_ptr += MkG.rows();
-    //         D_col_ptr += MkG.cols();
-    //     }
-    // }
-
-
-    // Eigen::MatrixXcd Utot_concat(D_col_ptr,n_cells);
-    // // use .asDiagonal
-    // auto utc_row_ptr{0};
-    // for(auto& vec_of_tot_fields : Ez_tot){
-    //     for(auto& tot_field : vec_of_tot_fields){
-    //         Utot_concat.block(
-    //             utc_row_ptr,0,
-    //             n_cells,n_cells
-    //         ) = tot_field.getValRef().asDiagonal();
-    //         utc_row_ptr += n_cells;
-    //
-    //     }
-    // }
-    //
+    auto bim_err{1.0};
     for(auto bim_iter{0};bim_iter<10;++bim_iter){
         calcDomainEzTot();
         auto n_cells{mesh.areas.size()};
@@ -1646,9 +1608,7 @@ void Chamber::bornIterativeMethod(){
                 total_data_count += rx_list.size();
             }
         }
-
         std::cout << "Starting DU product\n";
-
         auto du_row_ptr{0};
         Eigen::MatrixXcd DU(total_data_count,n_cells);
         for(auto ifreq{0};ifreq<Ez_tot.size();++ifreq){
@@ -1700,17 +1660,22 @@ void Chamber::bornIterativeMethod(){
 
         std::cout << "Truncating SVD matrices...\n";
         Eigen::VectorXd DU_singular_values{SVD_DU.singularValues()};
+        double sing_val_thresh{-1};
+        while(not(0<sing_val_thresh && sing_val_thresh<1)){
+            std::cout << "What threshold shall I use for singular values?[0-1]\n";
+            std::cin >> sing_val_thresh;
+        }
         auto sing_val_idx{0};
         for(
             sing_val_idx=0;
             sing_val_idx<DU_singular_values.size();
             ++sing_val_idx
         ){
-            if(DU_singular_values(sing_val_idx)<(DU_singular_values(0)*1e-1)){
-                std::cout << "Gonna use " << sing_val_idx << " singular values, out of " << DU_singular_values.size() << "\n";
+            if(DU_singular_values(sing_val_idx)<(DU_singular_values(0)*sing_val_thresh)){
                 break;
             }
         }
+        std::cout << "Gonna use " << sing_val_idx << " singular values, out of " << DU_singular_values.size() << "\n";
         Eigen::MatrixXcd U_trunc{SVD_DU.matrixU()};
         U_trunc = U_trunc.block(
             0,0,
@@ -1741,6 +1706,10 @@ void Chamber::bornIterativeMethod(){
                 Ez_meas_mask_ptr += n_data_for_tx;
             }
         }
+        WriteVectorToFile(
+            "Ez_sct_concat.txt",
+            Ez_sct_meas_masked
+        );
         std::cout << "Done constructing concatenated data vector\n";
 
         // Use truncated SVD to solve for chi
@@ -1757,13 +1726,20 @@ void Chamber::bornIterativeMethod(){
         };
         std::cout << "Done chi calculation.\n";
         WriteVectorToFile(
-            "chi0.txt",
+            "chi" + std::to_string(bim_iter) + ".txt",
             chi_eps
         );
+        WriteVectorToFile(
+            "Ez_tot" + std::to_string(bim_iter) + ".txt",
+            Ez_tot[0][0].getValRef()
+        );
         mesh.WriteMeshToFile("./");
-
         // Now set the target, given chi:
         target.eps_r.setVals((chi_eps.array()+1).matrix());
+
+        bim_err = (Ez_sct_meas_masked - DU*chi_eps).norm()/
+            (Ez_sct_meas_masked.norm());
+        std::cout << "Error at iteration " << bim_iter << " is "<<  bim_err << "\n";
     }
 }
 

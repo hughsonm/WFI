@@ -56,7 +56,7 @@ int main(int argc, char** argv){
     img_chamber.setupAntennas(antennafile);
     img_chamber.setupProbes(probefile);
     img_chamber.setupTx2RxMap(tx2rxfile);
-    img_chamber.readMeasuredData(total_data_prefix,10);
+    img_chamber.readMeasuredData(total_data_prefix,0.0001);
     img_chamber.bornIterativeMethod();
     gmsh::finalize();
     return(0);
