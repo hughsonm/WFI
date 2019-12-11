@@ -90,6 +90,7 @@ int main(int argc, char** argv){
             }
             iter_count++;
         }
+        
         auto freq_count{0};
         for(auto& vec_of_sct_fields : inv_bim.Ez_sct_meas){
             Eigen::MatrixXcd meas_mat;

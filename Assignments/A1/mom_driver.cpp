@@ -370,10 +370,10 @@ void Mesh::buildDomainGreen(
 Chamber::Chamber(const std::string& meshfile)
 {
     mesh.buildTriangulation(meshfile);
-    // Set the target_act to be zero contrast.
-    target_act.eps_r.setLocations(mesh.centroids);
-    target_act.eps_r.fillOnes();
-    target_act.ready = true;
+    // Set the target_tot to be zero contrast.
+    target_tot.eps_r.setLocations(mesh.centroids);
+    target_tot.eps_r.fillOnes();
+    target_tot.ready = true;
 }
 
 void Chamber::A3P3(
@@ -474,9 +474,9 @@ void Chamber::setTarget(const std::string& targetfile)
     double eps_rel_real,eps_rel_imag;
     std::complex<double> eps_rel_complex;
 
-    target_act.eps_r.fillOnes();
+    target_tot.eps_r.fillOnes();
     Eigen::VectorXcd eps_to_set;
-    target_act.eps_r.getVals(eps_to_set);
+    target_tot.eps_r.getVals(eps_to_set);
     while(reader)
     {
         reader >>tag;
@@ -494,7 +494,7 @@ void Chamber::setTarget(const std::string& targetfile)
             }
         }
     }
-    target_act.eps_r.setVals(eps_to_set);
+    target_tot.eps_r.setVals(eps_to_set);
     reader.close();
 }
 
@@ -659,14 +659,14 @@ void Chamber::A2Q3(
         }
     }
 
-    if(not (G_b_domain_by_freq[0].rows() and G_b_domain_by_freq[0].cols()))
+    if(not (G_inc_domain_by_freq[0].rows() and G_inc_domain_by_freq[0].cols()))
     {
         std::cerr << "We have no green function operator. Attempting to build" << std::endl;
         assert(k2_bs[0] != 0.0);
         std::cerr << "frequencies[0] is " << frequencies[0] << std::endl;
         std::cerr << "k2_bs[0] is " << k2_bs[0] << std::endl;
         mesh.buildDomainGreen(
-            G_b_domain_by_freq[0],
+            G_inc_domain_by_freq[0],
             k2_bs[0]
         );
         std::cerr << "Built green function operator!" << std::endl;
@@ -694,18 +694,18 @@ void Chamber::A2Q3(
         std::cerr << "Assigned!" << std::endl;
 	}
 
-    if(!G_b_data_by_freq[0].rows() || !G_b_data_by_freq[0].cols())
+    if(!G_inc_data_by_freq[0].rows() || !G_inc_data_by_freq[0].cols())
     {
-        std::cerr << "Annihilator needs G_b_data_by_freq[0]. Building it now..." << std::endl;
+        std::cerr << "Annihilator needs G_inc_data_by_freq[0]. Building it now..." << std::endl;
         mesh.buildDataGreen(
-            G_b_data_by_freq[0],
+            G_inc_data_by_freq[0],
             k2_bs[0],
             probe_points
         );
     }
 
     Eigen::MatrixXcd H{
-        (k2_bs[0])*G_b_data_by_freq[0]*(gg.conjugate())
+        (k2_bs[0])*G_inc_data_by_freq[0]*(gg.conjugate())
     };
 
     std::cerr << "LU-decomposing H:" << std::endl;
@@ -766,7 +766,7 @@ void Chamber::A2Q3(
     for(auto tt{0}; tt<w_on_eles.cols(); ++tt)
     {
         // My G operators map from k2_bs[0]*w to u^s
-        domain_total_fields.col(tt) = Ez_inc[0][tt].getValRef() + k2_bs[0]*G_b_domain_by_freq[0]*w_on_eles.col(tt);
+        domain_total_fields.col(tt) = Ez_inc[0][tt].getValRef() + k2_bs[0]*G_inc_domain_by_freq[0]*w_on_eles.col(tt);
     }
     Eigen::VectorXcd contrast(mesh.areas.size());
     for(auto kk{0}; kk<contrast.size(); ++kk)
@@ -863,7 +863,7 @@ void Chamber::A2Q5(
         calcDataEzInc();
     }
 
-    Eigen::MatrixXcd Ez_sct_meas_mat(G_b_data_by_freq[0].rows(),ntx);
+    Eigen::MatrixXcd Ez_sct_meas_mat(G_inc_data_by_freq[0].rows(),ntx);
     for(auto tt{0}; tt<ntx; ++tt)
     {
         Eigen::VectorXcd tot_t;
@@ -876,16 +876,16 @@ void Chamber::A2Q5(
     }
 
 
-    if(!G_b_data_by_freq[0].rows() || !G_b_data_by_freq[0].cols())
+    if(!G_inc_data_by_freq[0].rows() || !G_inc_data_by_freq[0].cols())
     {
-        std::cerr << "Annihilator needs G_b_data_by_freq[0]. Building it now..." << std::endl;
+        std::cerr << "Annihilator needs G_inc_data_by_freq[0]. Building it now..." << std::endl;
         mesh.buildDataGreen(
-            G_b_data_by_freq[0],
+            G_inc_data_by_freq[0],
             k2_bs[0],
             probe_points
         );
     }
-    Eigen::MatrixXcd P{k2_bs[0]*G_b_data_by_freq[0]};
+    Eigen::MatrixXcd P{k2_bs[0]*G_inc_data_by_freq[0]};
     Eigen::MatrixXcd optimal_alphas(P.cols(),ntx);
 
     if(tikhonov)
@@ -1094,11 +1094,11 @@ void Chamber::A2Q5(
     {
         calcDomainEzInc();
     }
-    if(!G_b_domain_by_freq[0].rows() || !G_b_domain_by_freq[0].cols())
+    if(!G_inc_domain_by_freq[0].rows() || !G_inc_domain_by_freq[0].cols())
     {
-        std::cerr << "Annihilator need G_b_domain_by_freq[0]. Building it now..." << std::endl;
+        std::cerr << "Annihilator need G_inc_domain_by_freq[0]. Building it now..." << std::endl;
         mesh.buildDomainGreen(
-            G_b_domain_by_freq[0],
+            G_inc_domain_by_freq[0],
             k2_bs[0]
         );
     }
@@ -1109,7 +1109,7 @@ void Chamber::A2Q5(
     {
         Eigen::VectorXcd inc_c;
         Ez_inc[0][cc].getVals(inc_c);
-        Ez_tot_opt.col(cc) = inc_c + k2_bs[0]*G_b_domain_by_freq[0]*optimal_alphas.col(cc);
+        Ez_tot_opt.col(cc) = inc_c + k2_bs[0]*G_inc_domain_by_freq[0]*optimal_alphas.col(cc);
     }
     std::cerr << "success!" << std::endl;
 
@@ -1211,8 +1211,8 @@ void Chamber::setFrequencies(
         k2_bs.push_back(omega*omega/CNAUGHT/CNAUGHT);
     }
 
-    G_b_domain_by_freq.resize(frequencies.size());
-    G_b_data_by_freq.resize(frequencies.size());
+    G_inc_domain_by_freq.resize(frequencies.size());
+    G_inc_data_by_freq.resize(frequencies.size());
     L_domain_by_freq.resize(frequencies.size());
 
     Ez_inc.resize(frequencies.size());
@@ -1282,16 +1282,16 @@ void Chamber::calcDomainEzTot(void)
         // Build domain green matrix
         std::cerr << "Building domain green in calcDomainEzTot..." << std::endl;
         mesh.buildDomainGreen(
-            G_b_domain_by_freq[ifreq],
+            G_inc_domain_by_freq[ifreq],
             k2_bs[ifreq]
         );
-        std::cerr << "G:(" << G_b_domain_by_freq[ifreq].rows() << ",";
-        std::cerr << G_b_domain_by_freq[ifreq].cols() << ")" << std::endl;
+        std::cerr << "G:(" << G_inc_domain_by_freq[ifreq].rows() << ",";
+        std::cerr << G_inc_domain_by_freq[ifreq].cols() << ")" << std::endl;
         std::cerr << "Building DeltaK2..." << std::endl;
 
         // Build contrast matrix
         Eigen::VectorXcd eps_r_from_target;
-        target_act.eps_r.getVals(eps_r_from_target);
+        target_tot.eps_r.getVals(eps_r_from_target);
         Eigen::MatrixXcd DeltaK2;
         DeltaK2.resize(eps_r_from_target.size(),eps_r_from_target.size());
         DeltaK2.setZero();
@@ -1301,7 +1301,7 @@ void Chamber::calcDomainEzTot(void)
         }
 
         std::cerr << "Building L_domain" << std::endl;
-        L_domain_by_freq[ifreq] = -G_b_domain_by_freq[ifreq];
+        L_domain_by_freq[ifreq] = -G_inc_domain_by_freq[ifreq];
 
         for(int cc = 0; cc< DeltaK2.cols(); cc++)
         {
@@ -1326,7 +1326,7 @@ void Chamber::calcDomainEzTot(void)
             Eigen::VectorXcd inc_vec,sct_vec;
             Ez_inc[ifreq][jj].getVals(inc_vec);
             sct_vec = LU_L.solve(
-                G_b_domain_by_freq[ifreq]*(
+                G_inc_domain_by_freq[ifreq]*(
                     DeltaK2*inc_vec
                 )
             );
@@ -1354,12 +1354,12 @@ void Chamber::calcDataEzTot(void)
             std::cerr << std::endl;
             calcDomainEzTot();
         }
-        if(!G_b_data_by_freq[ifreq].rows() || !G_b_data_by_freq[ifreq].cols())
+        if(!G_inc_data_by_freq[ifreq].rows() || !G_inc_data_by_freq[ifreq].cols())
         {
             std::cerr << "Data green was not built. Getting it now";
             std::cerr << std::endl;
             mesh.buildDataGreen(
-                G_b_data_by_freq[ifreq],
+                G_inc_data_by_freq[ifreq],
                 k2_bs[ifreq],
                 probe_points
             );
@@ -1373,7 +1373,7 @@ void Chamber::calcDataEzTot(void)
         Ez_tot_d[ifreq].resize(antennas.size());
 
         Eigen::MatrixXcd DeltaK2;
-        const Eigen::VectorXcd& target_epsr{target_act.eps_r.getValRef()};
+        const Eigen::VectorXcd& target_epsr{target_tot.eps_r.getValRef()};
         auto n_eps{target_epsr.size()};
         DeltaK2.resize(n_eps,n_eps);
 
@@ -1388,7 +1388,7 @@ void Chamber::calcDataEzTot(void)
             std::cerr << tt << "\n";
             Eigen::VectorXcd Ez_tot_t;
             Ez_tot[ifreq][tt].getVals(Ez_tot_t);
-            Eigen::VectorXcd Ez_sct_d_t{G_b_data_by_freq[ifreq]*(DeltaK2*(Ez_tot_t))};
+            Eigen::VectorXcd Ez_sct_d_t{G_inc_data_by_freq[ifreq]*(DeltaK2*(Ez_tot_t))};
             Ez_sct_d[ifreq][tt].setVals(Ez_sct_d_t);
             Eigen::VectorXcd Ez_inc_d_t;
             Ez_inc_d[ifreq][tt].getVals(Ez_inc_d_t);
@@ -1529,9 +1529,102 @@ void Chamber::setupTx2RxMap(
     reader.close();
 }
 
+void DomainTotalFieldSolve(
+    const std::vector<std::vector<Field> >& U_inc,
+    const Target& target,
+    const std::vector<Eigen::MatrixXcd>& DomainGreens,
+    const std::vector<std::complex<double> >& k2s,
+    std::vector<std::vector<Field> >& U_tot,
+);
+
+void DataScatteredFieldSolve(
+    const std::vector<std::vector<Field> >& U_tot_dom,
+    const Target& target,
+    const std::vector<Eigen::MatrixXcd>& DataGreens,
+    const std::vector<std::complex<double> >&k2s,
+    std::vector<std::vector<Field> >& U_sct_dat
+);
+
+DBIMInversion Chamber::distortedBornIterativeMethod(){
+
+    assert(frequencies.size());
+    assert(probes.size());
+    assert(antennas.size());
+    assert(tx2rx.size() == frequencies.size());
+    assert(Ez_tot_meas.size());
+
+    G_inc_domain_by_freq.resize(frequencies.size());
+
+    for(auto ifreq{0};ifreq<frequencies.size();ifreq++){
+        mesh.buildDataGreen(
+            G_inc_data_by_freq[ifreq],
+            k2_bs[ifreq],
+            probe_points
+        );
+        mesh.buildDomainGreen(
+            G_inc_domain_by_freq[ifreq],
+            k2_bs[ifreq]
+        );
+    }
+
+    // Build all my Ms matrices
+    M_s_data.resize(frequencies.size());
+    for(auto& M_s_vec : M_s_data){
+        M_s_vec.resize(antennas.size());
+        for(auto& M_s : M_s_vec){
+            M_s.resize(
+                probes.size(),
+                probes.size()
+            );
+        }
+    }
+
+    for(auto ifreq{0}; ifreq<tx2rx.size(); ++ifreq){
+        for(auto itx{0}; itx < tx2rx[ifreq].size(); ++itx){
+            auto row_ptr{0};
+            M_s_data[ifreq][itx].resize(
+                tx2rx[ifreq][itx].size(),
+                probes.size()
+            );
+            M_s_data[ifreq][itx].setZero();
+            for(auto& rx_idx : tx2rx[ifreq][itx]){
+                M_s_data[ifreq][itx](row_ptr++,rx_idx)=1.0;
+            }
+        }
+    }
+
+    for(
+        auto dbim_iter{0};
+        dbim_iter<3;
+        ++dbim_iter
+    ){
+        // Calculate background fields on the domain.
+        //  Use the background contrast as the target.
+        //  Solve using the incident green's function and the incident fields.
+
+        // Form G^dat_bkg from the background fields on the domain.
+
+
+        // Calculate u^bkg_dat (background fields on measurement surface)
+        //  Use the incident green's function, the
+
+
+        // Solve for xhi^tot_bkg via truncated svd.
+        // u^{tot,meas} - u^{bkg}_{dat} =
+        // k_b^2*G^dat_bkg*U^tot_dom*chi^tot_bkg
+
+        // Assign T/B contrast to B/I contrast
+    }
+
+
+
+    DBIMInversion inv_log;
+    return(inv_log);
+}
+
 BIMInversion Chamber::bornIterativeMethod(){
 
-    //For each frequency, make sure I have my G_b_dom and G_b_data.
+    //For each frequency, make sure I have my G_inc_dom and G_inc_data.
     assert(frequencies.size());
     assert(probes.size());
     assert(antennas.size());
@@ -1559,16 +1652,16 @@ BIMInversion Chamber::bornIterativeMethod(){
     }
 
 
-    G_b_domain_by_freq.resize(frequencies.size());
+    G_inc_domain_by_freq.resize(frequencies.size());
 
     for(auto ifreq{0};ifreq<frequencies.size();ifreq++){
         mesh.buildDataGreen(
-            G_b_data_by_freq[ifreq],
+            G_inc_data_by_freq[ifreq],
             k2_bs[ifreq],
             probe_points
         );
         mesh.buildDomainGreen(
-            G_b_domain_by_freq[ifreq],
+            G_inc_domain_by_freq[ifreq],
             k2_bs[ifreq]
         );
     }
@@ -1634,7 +1727,7 @@ BIMInversion Chamber::bornIterativeMethod(){
                 ) =
                 M_s_data[ifreq][itx]*
                 k2_bs[ifreq]*
-                G_b_data_by_freq[ifreq]*
+                G_inc_data_by_freq[ifreq]*
                 Ez_tot[ifreq][itx].getValRef().asDiagonal();
                 du_row_ptr += n_data_for_tx;
             }
@@ -1717,7 +1810,7 @@ BIMInversion Chamber::bornIterativeMethod(){
         // Now set the target, given chi:
         Eigen::VectorXcd eps_rel{(chi_eps.array()+1).matrix()};
 
-        target_act.eps_r.setVals(eps_rel);
+        target_tot.eps_r.setVals(eps_rel);
 
 
         Field chi_for_step;

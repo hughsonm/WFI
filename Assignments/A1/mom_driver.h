@@ -167,6 +167,7 @@ class Target
 {
 public:
     Field eps_r;
+    Field contrast;
     void getSqWaveNumberField(
         Field & k2,
         double frequency
@@ -183,6 +184,15 @@ struct BIMStep{
 struct BIMInversion{
     std::vector<BIMStep> steps;
     std::vector<std::vector<Field> > Ez_sct_meas;
+    Mesh imaging_mesh;
+};
+
+struct DBIMStep : BIMStep{
+};
+
+struct DBIMInversion{
+    std::vector<DBIMStep> steps;
+    std::vector<std::vector<Field> > Ez_tot_meas;
     Mesh imaging_mesh;
 };
 
@@ -226,6 +236,7 @@ public:
         std::string freqfile
     );
     BIMInversion bornIterativeMethod();
+    DBIMInversion distortedBornIterativeMethod();
     void readMeasuredData(
         std::string dataprefix,
         double noise_pct
@@ -235,9 +246,9 @@ public:
     // My G operators perform the integration of the product of a vector with
     // a green's function.
     // u^s = k_b^2*G*w. That's how these guys work
-    std::vector<Eigen::MatrixXcd> G_b_domain_by_freq;
-    bool G_b_domains_ready{false};
-    std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
+    std::vector<Eigen::MatrixXcd> G_inc_domain_by_freq;
+    bool G_inc_domains_ready{false};
+    std::vector<Eigen::MatrixXcd> G_inc_data_by_freq;
     std::vector<std::vector<Eigen::MatrixXd>>  M_s_data;
     // For each frequency, for each transmitter, we have a M_s matrix which
     // selects a subset of all of the measurements on the measurement
@@ -249,10 +260,10 @@ public:
     std::vector<std::vector<std::vector<int> > > tx2rx;
     Eigen::MatrixXd probe_points;
     Mesh mesh;
-    Target target_act;
+    Target target_tot;
 
-    std::vector<std::vector<Field> > Ez_inc,Ez_tot,Ez_sct;
-    std::vector<std::vector<Field> > Ez_inc_d,Ez_tot_d,Ez_sct_d;
+    std::vector<std::vector<Field> > Ez_inc,Ez_bkg,Ez_tot,Ez_sct;
+    std::vector<std::vector<Field> > Ez_inc_d,Ez_bkg_d,Ez_tot_d,Ez_sct_d;
     std::vector<std::vector<Field> > Ez_tot_meas,Ez_sct_meas;
 };
 

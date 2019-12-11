@@ -36,3 +36,4 @@ clean:
 	@echo "Cleaning up..."
 	rm -rvf *.o ${BINS}
 	rm -rvf *.out ${BINS}
+	rm ../A1/mom_driver.o
