@@ -120,10 +120,14 @@ public:
     const Eigen::VectorXcd & getValRef(void){
       return vals;
     }
-    void erase(void){
+    void fillOnes(void){
         vals.resize(locs->rows());
         vals.setOnes();
     };
+    void fillZeros(void){
+        vals.resize(locs->rows());
+        vals.setZero();
+    }
     void WriteValsToFile(std::string filename){WriteVectorToFile(filename,vals);};
     bool ready{false};
 };
@@ -170,6 +174,17 @@ public:
     bool ready{false};
 };
 
+struct BIMStep{
+    Field chi;
+    std::vector<std::vector<Field> > Utot;
+    double Fs{1.0};
+};
+
+struct BIMInversion{
+    std::vector<BIMStep> steps;
+    std::vector<std::vector<Field> > Ez_sct_meas;
+    Mesh imaging_mesh;
+};
 
 
 
@@ -210,7 +225,7 @@ public:
     void A3P4(
         std::string freqfile
     );
-    void bornIterativeMethod();
+    BIMInversion bornIterativeMethod();
     void readMeasuredData(
         std::string dataprefix,
         double noise_pct
@@ -221,7 +236,7 @@ public:
     // a green's function.
     // u^s = k_b^2*G*w. That's how these guys work
     std::vector<Eigen::MatrixXcd> G_b_domain_by_freq;
-    bool G_b_domains_ready{false};  
+    bool G_b_domains_ready{false};
     std::vector<Eigen::MatrixXcd> G_b_data_by_freq;
     std::vector<std::vector<Eigen::MatrixXd>>  M_s_data;
     // For each frequency, for each transmitter, we have a M_s matrix which
@@ -234,7 +249,7 @@ public:
     std::vector<std::vector<std::vector<int> > > tx2rx;
     Eigen::MatrixXd probe_points;
     Mesh mesh;
-    Target target;
+    Target target_act;
 
     std::vector<std::vector<Field> > Ez_inc,Ez_tot,Ez_sct;
     std::vector<std::vector<Field> > Ez_inc_d,Ez_tot_d,Ez_sct_d;

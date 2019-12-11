@@ -370,10 +370,10 @@ void Mesh::buildDomainGreen(
 Chamber::Chamber(const std::string& meshfile)
 {
     mesh.buildTriangulation(meshfile);
-    // Set the target to be zero contrast.
-    target.eps_r.setLocations(mesh.centroids);
-    target.eps_r.erase();
-    target.ready = true;
+    // Set the target_act to be zero contrast.
+    target_act.eps_r.setLocations(mesh.centroids);
+    target_act.eps_r.fillOnes();
+    target_act.ready = true;
 }
 
 void Chamber::A3P3(
@@ -474,9 +474,9 @@ void Chamber::setTarget(const std::string& targetfile)
     double eps_rel_real,eps_rel_imag;
     std::complex<double> eps_rel_complex;
 
-    target.eps_r.erase();
+    target_act.eps_r.fillOnes();
     Eigen::VectorXcd eps_to_set;
-    target.eps_r.getVals(eps_to_set);
+    target_act.eps_r.getVals(eps_to_set);
     while(reader)
     {
         reader >>tag;
@@ -494,7 +494,7 @@ void Chamber::setTarget(const std::string& targetfile)
             }
         }
     }
-    target.eps_r.setVals(eps_to_set);
+    target_act.eps_r.setVals(eps_to_set);
     reader.close();
 }
 
@@ -1291,7 +1291,7 @@ void Chamber::calcDomainEzTot(void)
 
         // Build contrast matrix
         Eigen::VectorXcd eps_r_from_target;
-        target.eps_r.getVals(eps_r_from_target);
+        target_act.eps_r.getVals(eps_r_from_target);
         Eigen::MatrixXcd DeltaK2;
         DeltaK2.resize(eps_r_from_target.size(),eps_r_from_target.size());
         DeltaK2.setZero();
@@ -1373,7 +1373,7 @@ void Chamber::calcDataEzTot(void)
         Ez_tot_d[ifreq].resize(antennas.size());
 
         Eigen::MatrixXcd DeltaK2;
-        const Eigen::VectorXcd& target_epsr{target.eps_r.getValRef()};
+        const Eigen::VectorXcd& target_epsr{target_act.eps_r.getValRef()};
         auto n_eps{target_epsr.size()};
         DeltaK2.resize(n_eps,n_eps);
 
@@ -1529,7 +1529,7 @@ void Chamber::setupTx2RxMap(
     reader.close();
 }
 
-void Chamber::bornIterativeMethod(){
+BIMInversion Chamber::bornIterativeMethod(){
 
     //For each frequency, make sure I have my G_b_dom and G_b_data.
     assert(frequencies.size());
@@ -1538,24 +1538,24 @@ void Chamber::bornIterativeMethod(){
     assert(tx2rx.size() == frequencies.size());
 
     assert(Ez_tot_meas.size());
+
     calcDataEzInc();
     Ez_sct_meas.resize(Ez_tot_meas.size());
-    auto vf_idx{0};
-    for(auto& vf:Ez_tot_meas){
-        auto ff_idx{0};
-        Ez_sct_meas[vf_idx].resize(vf.size());
-        for(auto& ff:vf){
-            // std::cout << ff.getValRef().transpose() << "\n";
-            // std::cout << Ez_inc_d[vf_idx][ff_idx].getValRef().transpose() << "\n";
-            Ez_sct_meas[vf_idx][ff_idx].setVals(
-                ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()
-            );
-            // std::cout << Ez_sct_meas[vf_idx][ff_idx].getValRef().transpose() << "\n";
-            // const Eigen::VectorXcd dd{ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()};
-            // std::cout << "sct norm = " << dd.norm() << "\n";
-            ff_idx++;
+    {
+        auto vf_idx{0};
+        for(auto& vf:Ez_tot_meas){
+            auto ff_idx{0};
+            Ez_sct_meas[vf_idx].resize(vf.size());
+            for(auto& ff:vf){
+                // std::cout << ff.getValRef().transpose() << "\n";
+                // std::cout << Ez_inc_d[vf_idx][ff_idx].getValRef().transpose() << "\n";
+                Ez_sct_meas[vf_idx][ff_idx].setVals(
+                    ff.getValRef()-Ez_inc_d[vf_idx][ff_idx].getValRef()
+                );
+                ff_idx++;
+            }
+            vf_idx++;
         }
-        vf_idx++;
     }
 
 
@@ -1598,10 +1598,24 @@ void Chamber::bornIterativeMethod(){
             }
         }
     }
-    auto bim_err{1.0};
-    for(auto bim_iter{0};bim_iter<10;++bim_iter){
+
+    double sing_val_thresh{-1};
+    while(not(0.0<sing_val_thresh && sing_val_thresh<1.0)){
+        std::cout << "What threshold shall I use for singular values?[0-1]\n";
+        std::cin >> sing_val_thresh;
+    }
+    int n_bim_iterations{-1};
+    while(n_bim_iterations<0){
+        std::cout << "How many BIM iterations shall we run?\n";
+        std::cin >> n_bim_iterations;
+    }
+
+    BIMInversion inv_log;
+    inv_log.imaging_mesh = mesh;
+    inv_log.Ez_sct_meas = Ez_sct_meas;
+    for(auto bim_iter{0};bim_iter<n_bim_iterations;++bim_iter){
         calcDomainEzTot();
-        auto n_cells{mesh.areas.size()};
+        const auto n_cells{mesh.areas.size()};
         auto total_data_count{0};
         for(auto& tx_rx_map_at_freq : tx2rx){
             for(auto& rx_list : tx_rx_map_at_freq){
@@ -1639,56 +1653,34 @@ void Chamber::bornIterativeMethod(){
         );
 
         std::cout << "Decomposition complete!\n";
-        std::cout << "starting file write\n";
-        WriteMatrixToFile(
-            "DU.txt",
-            DU
-        );
-        WriteMatrixToFile(
-            "SVD_U.txt",
-            SVD_DU.matrixU()
-        );
-        WriteMatrixToFile(
-            "SVD_V.txt",
-            SVD_DU.matrixV()
-        );
-        WriteVectorToFile(
-            "SVD_S.txt",
-            SVD_DU.singularValues()
-        );
-        std::cout << "Done file write\n";
 
         std::cout << "Truncating SVD matrices...\n";
         Eigen::VectorXd DU_singular_values{SVD_DU.singularValues()};
-        double sing_val_thresh{-1};
-        while(not(0<sing_val_thresh && sing_val_thresh<1)){
-            std::cout << "What threshold shall I use for singular values?[0-1]\n";
-            std::cin >> sing_val_thresh;
-        }
-        auto sing_val_idx{0};
+
+        auto n_sing_vals_to_keep{0};
         for(
-            sing_val_idx=0;
-            sing_val_idx<DU_singular_values.size();
-            ++sing_val_idx
+            n_sing_vals_to_keep=0;
+            n_sing_vals_to_keep<DU_singular_values.size();
+            ++n_sing_vals_to_keep
         ){
-            if(DU_singular_values(sing_val_idx)<(DU_singular_values(0)*sing_val_thresh)){
+            if(DU_singular_values(n_sing_vals_to_keep)<(DU_singular_values(0)*sing_val_thresh)){
                 break;
             }
         }
-        std::cout << "Gonna use " << sing_val_idx << " singular values, out of " << DU_singular_values.size() << "\n";
+        std::cout << "Gonna use " << n_sing_vals_to_keep << " singular values, out of " << DU_singular_values.size() << "\n";
         Eigen::MatrixXcd U_trunc{SVD_DU.matrixU()};
         U_trunc = U_trunc.block(
             0,0,
-            U_trunc.rows(),sing_val_idx
+            U_trunc.rows(),n_sing_vals_to_keep
         );
 
         Eigen::MatrixXcd V_trunc{SVD_DU.matrixV()};
         V_trunc = V_trunc.block(
             0,0,
-            V_trunc.rows(),sing_val_idx
+            V_trunc.rows(),n_sing_vals_to_keep
         );
 
-        Eigen::VectorXcd S_trunc_vec{DU_singular_values.block(0,0,sing_val_idx,1)};
+        Eigen::VectorXcd S_trunc_vec{DU_singular_values.block(0,0,n_sing_vals_to_keep,1)};
         std::cout << "Done truncation\n";
         std::cout << U_trunc.rows() << "," << U_trunc.cols() << "," << S_trunc_vec.rows() << "," << V_trunc.cols() << "," << V_trunc.rows() << "\n";
 
@@ -1706,10 +1698,7 @@ void Chamber::bornIterativeMethod(){
                 Ez_meas_mask_ptr += n_data_for_tx;
             }
         }
-        WriteVectorToFile(
-            "Ez_sct_concat.txt",
-            Ez_sct_meas_masked
-        );
+
         std::cout << "Done constructing concatenated data vector\n";
 
         // Use truncated SVD to solve for chi
@@ -1725,22 +1714,24 @@ void Chamber::bornIterativeMethod(){
             )
         };
         std::cout << "Done chi calculation.\n";
-        WriteVectorToFile(
-            "chi" + std::to_string(bim_iter) + ".txt",
-            chi_eps
-        );
-        WriteVectorToFile(
-            "Ez_tot" + std::to_string(bim_iter) + ".txt",
-            Ez_tot[0][0].getValRef()
-        );
-        mesh.WriteMeshToFile("./");
         // Now set the target, given chi:
-        target.eps_r.setVals((chi_eps.array()+1).matrix());
+        Eigen::VectorXcd eps_rel{(chi_eps.array()+1).matrix()};
 
-        bim_err = (Ez_sct_meas_masked - DU*chi_eps).norm()/
+        target_act.eps_r.setVals(eps_rel);
+
+
+        Field chi_for_step;
+        chi_for_step.setLocations(inv_log.imaging_mesh.centroids);
+        chi_for_step.setVals(chi_eps);
+        BIMStep step;
+        step.chi = chi_for_step;
+        step.Utot = Ez_tot;
+        step.Fs = (Ez_sct_meas_masked - DU*chi_eps).norm()/
             (Ez_sct_meas_masked.norm());
-        std::cout << "Error at iteration " << bim_iter << " is "<<  bim_err << "\n";
+        inv_log.steps.push_back(step);
+        std::cout << "Error at iteration " << bim_iter << " is "<<  step.Fs << "\n";
     }
+    return(inv_log);
 }
 
 
@@ -1906,6 +1897,7 @@ void ReadMatrixFromFile(
     }
     reader.close();
 }
+
 
 void ReadMatrixFromFile(
     std::string filename,
