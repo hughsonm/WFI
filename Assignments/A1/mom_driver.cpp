@@ -1533,9 +1533,13 @@ void DomainTotalFieldSolve(
     const std::vector<std::vector<Field> >& U_inc,
     const Target& target,
     const std::vector<Eigen::MatrixXcd>& DomainGreens,
+    std::vector<Eigen::PartialPivLU<Eigen::MatrixXcd> >& LU_Ls,
+    bool build_Ls,
     const std::vector<std::complex<double> >& k2s,
-    std::vector<std::vector<Field> >& U_tot,
-);
+    std::vector<std::vector<Field> >& U_tot
+){
+    
+}
 
 void DataScatteredFieldSolve(
     const std::vector<std::vector<Field> >& U_tot_dom,
@@ -1543,7 +1547,9 @@ void DataScatteredFieldSolve(
     const std::vector<Eigen::MatrixXcd>& DataGreens,
     const std::vector<std::complex<double> >&k2s,
     std::vector<std::vector<Field> >& U_sct_dat
-);
+){
+    std::cout << "just did it \n";
+}
 
 DBIMInversion Chamber::distortedBornIterativeMethod(){
 
@@ -1579,6 +1585,8 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         }
     }
 
+    calcDataEzInc();
+
     for(auto ifreq{0}; ifreq<tx2rx.size(); ++ifreq){
         for(auto itx{0}; itx < tx2rx[ifreq].size(); ++itx){
             auto row_ptr{0};
@@ -1601,15 +1609,142 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         // Calculate background fields on the domain.
         //  Use the background contrast as the target.
         //  Solve using the incident green's function and the incident fields.
+        //  Ask DomainTotalFieldSolve to please give us the factored L matrices
+        std::vector<Eigen::PartialPivLU<Eigen::MatrixXcd> > LU_L_inc_domain_by_freq;
+        std::vector<std::vector<Field> > Ez_bkg_dom;
+        DomainTotalFieldSolve(
+            Ez_inc,
+            target_tot,
+            G_inc_domain_by_freq,
+            LU_L_inc_domain_by_freq,
+            true,
+            k2_bs,
+            Ez_bkg_dom
+        );
 
-        // Form G^dat_bkg from the background fields on the domain.
+        // DataScatteredFieldSolve to propagate those total fields to scattered
+        // fields at receiver points.
+        // Add the analytic incident field to get background field at receiver
+        // points.
+        std::vector<std::vector<Field> > Ez_bkg_sct_dat;
+        DataScatteredFieldSolve(
+            Ez_bkg_dom,
+            target_tot,
+            G_inc_data_by_freq,
+            k2_bs,
+            Ez_bkg_sct_dat
+        );
+        std::vector<std::vector<Field> > Ez_bkg_dat(Ez_bkg_sct_dat.size());
+        for(auto ifreq{0};ifreq<Ez_bkg_sct_dat.size();++ifreq){
+            Ez_bkg_sct_dat.resize(Ez_bkg_sct_dat[ifreq].size());
+            for(auto itx{0};itx < Ez_bkg_sct_dat[ifreq].size();++itx){
+                Ez_bkg_dat[ifreq][itx].setVals(
+                    Ez_inc_d[ifreq][itx].getValRef()+
+                    Ez_bkg_sct_dat[ifreq][itx].getValRef()
+                );
+            }
+        }
 
+        // Form G^dat_bkg
+        //  Impose incident fields located at the probe points
 
-        // Calculate u^bkg_dat (background fields on measurement surface)
-        //  Use the incident green's function, the
+        //  Set up some dummy antennas located at the probe points, and ask them
+        //  for their Ez responses.
+        //  Set up a target which is the background contrast.
+        //  DomainTotalFieldSolve with those incident fields and that target.
+        //  Pass in those handy-dandy factored L-matrices.
 
+        std::vector<std::vector<Field> > probe_unit_ez_inc(frequencies.size());
+        for(auto ifreq{0}; ifreq<frequencies.size();++ifreq){
+            probe_unit_ez_inc[ifreq].resize(probes.size());
+            for(auto pp{0}; pp<probes.size();++pp){
+                Antenna dummy_antenna;
+                dummy_antenna.style = LineSource;
+                dummy_antenna.location = probes[pp].location;
+                dummy_antenna.coefficient = 1.0;
+                Eigen::VectorXcd dummy_ez_inc;
+                dummy_antenna.getEz(
+                    dummy_ez_inc,
+                    mesh.centroids,
+                    frequencies[ifreq]
+                );
+                probe_unit_ez_inc[ifreq][pp].setVals(dummy_ez_inc);
+            }
+        }
 
-        // Solve for xhi^tot_bkg via truncated svd.
+        std::vector<std::vector<Field> > Ez_tot_due_to_probe_units;
+
+        DomainTotalFieldSolve(
+            probe_unit_ez_inc,
+            target_tot,
+            G_inc_domain_by_freq,
+            LU_L_inc_domain_by_freq,
+            false,
+            k2_bs,
+            Ez_tot_due_to_probe_units
+        );
+
+        std::vector<Eigen::MatrixXcd> G_bkg_dat_by_freq(frequencies.size());
+        for(auto ifreq{0}; ifreq< G_bkg_dat_by_freq.size();++ifreq){
+            G_bkg_dat_by_freq[ifreq].resize(
+                probes.size(),
+                mesh.centroids.rows()
+            );
+            for(auto iprobe{0}; iprobe<probes.size();++iprobe){
+                G_bkg_dat_by_freq[ifreq].row(iprobe) =
+                Ez_tot_due_to_probe_units[ifreq][iprobe].getValRef().transpose();
+            }
+        }
+
+        // Build big vector of Utotmeas, and Ubkg
+
+        auto n_data{0};
+        for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
+            for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
+                n_data += M_s_data[ifreq][itx].rows();
+            }
+        }
+        Eigen::VectorXcd Ez_tot_meas_concat(n_data);
+        Eigen::VectorXcd Ez_bkg_calc_concat(n_data);
+        auto concat_ptr{0};
+        for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
+            for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
+                const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
+                Ez_tot_meas_concat.block(
+                    concat_ptr,0,
+                    n_data_for_tx,1
+                ) = M_s_data[ifreq][itx]*Ez_tot_meas[ifreq][itx].getValRef();
+                Ez_bkg_calc_concat.block(
+                    concat_ptr,0,
+                    n_data_for_tx,1
+                ) = M_s_data[ifreq][itx]*Ez_bkg_dat[ifreq][itx].getValRef();
+                concat_ptr++;
+            }
+        }
+
+        Eigen::MatrixXcd D_bkg(n_data,mesh.centroids.rows());
+        auto D_ptr{0};
+        for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
+            Eigen::MatrixXcd kG{
+                k2_bs[ifreq]*
+                G_bkg_dat_by_freq[ifreq]
+            };
+            for(auto itx{0};itx<antennas.size();++itx){
+                Eigen::MatrixXcd D_block{
+                        M_s_data[ifreq][itx]*
+                        kG*
+                        Ez_bkg_dom[ifreq][itx].getValRef().asDiagonal()
+                };
+                D_bkg.block(
+                    D_ptr,0,
+                    D_block.rows(),D_block.cols()
+                ) = D_block;
+            }
+        }
+
+        // Build a big vertcat of kb^2*G_bkg_dat*[Ubkgdom]
+
+        // Solve for chi^tot_bkg via truncated svd.
         // u^{tot,meas} - u^{bkg}_{dat} =
         // k_b^2*G^dat_bkg*U^tot_dom*chi^tot_bkg
 

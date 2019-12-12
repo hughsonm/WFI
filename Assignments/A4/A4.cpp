@@ -60,6 +60,8 @@ int main(int argc, char** argv){
     img_chamber.setupProbes(probefile);
     img_chamber.setupTx2RxMap(tx2rxfile);
     img_chamber.readMeasuredData(total_data_prefix,0.0001);
+
+    DBIMInversion inv_dbim = img_chamber.distortedBornIterativeMethod();
     BIMInversion inv_bim = img_chamber.bornIterativeMethod();
 
 
@@ -90,7 +92,7 @@ int main(int argc, char** argv){
             }
             iter_count++;
         }
-        
+
         auto freq_count{0};
         for(auto& vec_of_sct_fields : inv_bim.Ez_sct_meas){
             Eigen::MatrixXcd meas_mat;

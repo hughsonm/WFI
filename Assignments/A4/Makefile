@@ -7,7 +7,7 @@
 CC = clang # compiler to use
 CXX = clang++
 
-CXXFLAGS = -std=c++17 -O3 -Wall
+CXXFLAGS = -std=c++17 -O0 -g -Wall
 LIBS = -lgmsh -lboost_math_C99
 LDFLAGS =
 
