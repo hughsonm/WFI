@@ -117,7 +117,7 @@ public:
         dest.resize(vals.size());
         dest = vals;
     };
-    const Eigen::VectorXcd & getValRef(void){
+    const Eigen::VectorXcd & getValRef(void) const{
       return vals;
     }
     void fillOnes(void){
@@ -185,6 +185,7 @@ struct BIMInversion{
     std::vector<BIMStep> steps;
     std::vector<std::vector<Field> > Ez_sct_meas;
     Mesh imaging_mesh;
+    void WriteResults(std::string outdir);
 };
 
 struct DBIMStep : BIMStep{
@@ -194,6 +195,7 @@ struct DBIMInversion{
     std::vector<DBIMStep> steps;
     std::vector<std::vector<Field> > Ez_tot_meas;
     Mesh imaging_mesh;
+    void WriteResults(std::string outdir);
 };
 
 

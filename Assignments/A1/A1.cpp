@@ -107,7 +107,7 @@ int main (int argc, char **argv)
         img_chamber.mesh.centroids
     );
 
-    img_chamber.target.eps_r.WriteValsToFile(
+    img_chamber.target_tot.eps_r.WriteValsToFile(
         outdir + "eps_r.txt"
     );
     WriteMatrixToFile(

@@ -62,63 +62,12 @@ int main(int argc, char** argv){
     img_chamber.readMeasuredData(total_data_prefix,0.0001);
 
     DBIMInversion inv_dbim = img_chamber.distortedBornIterativeMethod();
-    BIMInversion inv_bim = img_chamber.bornIterativeMethod();
+    // BIMInversion inv_bim = img_chamber.bornIterativeMethod();
 
 
     if(make_outdir(output_directory_name)){
-        inv_bim.imaging_mesh.WriteMeshToFile(output_directory_name);
-        auto iter_count{0};
-        for(auto& step : inv_bim.steps){
-            step.chi.WriteValsToFile(
-                output_directory_name +
-                "chi_iter_" + std::to_string(iter_count) +
-                ".txt"
-            );
-            auto step_freq_count{0};
-            for(auto& vec_of_tot_fields : step.Utot){
-                auto field_count{0};
-                for(auto& tot_field:vec_of_tot_fields){
-                    tot_field.WriteValsToFile(
-                        output_directory_name +
-                        "Ez_tot_" +
-                        "iter_" + std::to_string(iter_count) +
-                        "freq_" + std::to_string(step_freq_count) +
-                        "tx_"   + std::to_string(field_count) +
-                        ".txt"
-                    );
-                    field_count++;
-                }
-                step_freq_count++;
-            }
-            iter_count++;
-        }
-
-        auto freq_count{0};
-        for(auto& vec_of_sct_fields : inv_bim.Ez_sct_meas){
-            Eigen::MatrixXcd meas_mat;
-            FormFieldMatrix(
-                meas_mat,
-                vec_of_sct_fields
-            );
-            WriteMatrixToFile(
-                output_directory_name +
-                "Ez_sct_meas_" +
-                "freq_" +
-                std::to_string(freq_count) +
-                ".txt",
-                meas_mat
-            );
-            freq_count++;
-        }
-        Eigen::VectorXcd Fs_vec(inv_bim.steps.size());
-        for(auto ii{0}; ii<Fs_vec.size(); ++ii){
-            Fs_vec(ii) = inv_bim.steps[ii].Fs;
-        }
-        WriteVectorToFile(
-            output_directory_name + "Fs.txt",
-            Fs_vec
-        );
-
+        inv_dbim.WriteResults(output_directory_name);
+        // inv_bim.WriteResults(output_directory_name);
     }
 
     gmsh::finalize();
