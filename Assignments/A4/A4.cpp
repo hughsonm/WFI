@@ -42,14 +42,16 @@ bool make_outdir(std::string& dirname){
 
 int main(int argc, char** argv){
     gmsh::initialize();
-    assert(argc==8);
-    std::string meshfile{argv[1]};
-    std::string antennafile{argv[2]};
-    std::string probefile{argv[3]};
-    std::string tx2rxfile{argv[4]};
-    std::string bimfreqfile{argv[5]};
-    std::string total_data_prefix{argv[6]};
+    assert(argc==9);
+    const std::string meshfile{argv[1]};
+    const std::string antennafile{argv[2]};
+    const std::string probefile{argv[3]};
+    const std::string tx2rxfile{argv[4]};
+    const std::string bimfreqfile{argv[5]};
+    const std::string total_data_prefix{argv[6]};
     std::string output_directory_name{argv[7]};
+    const std::string noise_percent_string{argv[8]};
+    double noise_percent{std::stod(noise_percent_string)};
 
 
     std::cout << "Mesh File     : " << meshfile << "\n";
@@ -59,15 +61,15 @@ int main(int argc, char** argv){
     img_chamber.setupAntennas(antennafile);
     img_chamber.setupProbes(probefile);
     img_chamber.setupTx2RxMap(tx2rxfile);
-    img_chamber.readMeasuredData(total_data_prefix,0.0001);
+    img_chamber.readMeasuredData(total_data_prefix,noise_percent);
 
     DBIMInversion inv_dbim = img_chamber.distortedBornIterativeMethod();
-    // BIMInversion inv_bim = img_chamber.bornIterativeMethod();
+    //BIMInversion inv_bim = img_chamber.bornIterativeMethod();
 
 
     if(make_outdir(output_directory_name)){
         inv_dbim.WriteResults(output_directory_name);
-        // inv_bim.WriteResults(output_directory_name);
+        //inv_bim.WriteResults(output_directory_name);
     }
 
     gmsh::finalize();

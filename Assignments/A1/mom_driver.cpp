@@ -539,36 +539,28 @@ void Chamber::readMeasuredData(
 {
     for(auto ifreq{0}; ifreq<frequencies.size();++ifreq){
         Eigen::MatrixXcd tot_matrix;
-        std::string datafilename{dataprefix+std::to_string(ifreq)+".txt"};
+        const std::string datafilename{dataprefix+std::to_string(ifreq)+".txt"};
         ReadMatrixFromFile(
             datafilename,
             tot_matrix
         );
-        std::complex<double> max_tot{0.0};
-        for(auto rr{0}; rr<tot_matrix.rows(); ++rr)
-        {
-            for(auto cc{0}; cc< tot_matrix.cols(); ++cc)
-            {
-                if(std::abs(max_tot)<std::abs(tot_matrix(rr,cc)))
-                {
-                    max_tot = tot_matrix(rr,cc);
-                }
-            }
-        }
-        Eigen::MatrixXd noise_angles{
+        const auto data_abs_avg{
+            tot_matrix.array().abs().mean()
+        };
+        const Eigen::MatrixXd noise_angles{
+            M_PI*
             Eigen::MatrixXd::Random(
                 tot_matrix.rows(),
                 tot_matrix.cols()
             )
         };
-        noise_angles *= M_PI;
-        Eigen::MatrixXd noise_magnitudes{
+        const Eigen::MatrixXd noise_magnitudes{
+            data_abs_avg*noise_pct/100.0*
             Eigen::MatrixXd::Random(
                 tot_matrix.rows(),
                 tot_matrix.cols()
             )
-        };
-        noise_magnitudes *= std::abs(max_tot)*noise_pct/100.0;
+        };        
         Eigen::MatrixXcd noise(
             tot_matrix.rows(),
             tot_matrix.cols()
@@ -1544,15 +1536,14 @@ void DomainTotalFieldSolve(
         const Eigen::VectorXcd& contrast_vec = target.contrast.getValRef();
         LU_Ls.resize(DomainGreens.size());
         for(auto ifreq{0};ifreq<DomainGreens.size();++ifreq){
-            auto k2{k2s[ifreq]};
             const Eigen::MatrixXcd L{
-                -k2*
-                DomainGreens[ifreq]*
-                contrast_vec.asDiagonal() +
                 Eigen::MatrixXcd::Identity(
                     DomainGreens[ifreq].rows(),
                     DomainGreens[ifreq].cols()
                 )
+                -k2s[ifreq]*
+                DomainGreens[ifreq]*
+                contrast_vec.asDiagonal()
             };
             // L += Eigen::MatrixXcd::Identity(L.rows(),L.cols());
             LU_Ls[ifreq].compute(L);
@@ -1644,17 +1635,31 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         }
     }
 
-    double sing_val_thresh{-1};
-    while(not(0.0<sing_val_thresh && sing_val_thresh<1.0)){
-        std::cout << "What threshold shall I use for singular values?[0-1]\n";
-        std::cin >> sing_val_thresh;
-    }
+    // double sing_val_thresh{-1};
+    // while(not(0.0<sing_val_thresh && sing_val_thresh<1.0)){
+    //     std::cout << "What threshold shall I use for singular values?[0-1]\n";
+    //     std::cin >> sing_val_thresh;
+    // }
     int n_dbim_iterations{-1};
     while(n_dbim_iterations<0){
         std::cout << "How many DBIM iterations shall we run?\n";
         std::cin >> n_dbim_iterations;
     }
+    int n_lscg_iterations{-1};
+    while(n_lscg_iterations<0){
+        std::cout << "How many least-squares conjugate-gradient steps?\n";
+        std::cin >> n_lscg_iterations;
+    }
 
+    double lscg_tolerance{-1.0};
+    while(not(0.0<lscg_tolerance and lscg_tolerance < 1.0)){
+        std::cout << "Least-squares conjugate-gradient tolerance?\n";
+        std::cin >> lscg_tolerance;
+    }
+
+    double contrast_update_scale;
+    std::cout << "Contrast update scale?\n";
+    std::cin >> contrast_update_scale;
     DBIMInversion inv_log;
     inv_log.Ez_tot_meas = Ez_tot_meas;
     inv_log.imaging_mesh = mesh;
@@ -1668,8 +1673,12 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         //  Use the background contrast as the target.
         //  Solve using the incident green's function and the incident fields.
         //  Ask DomainTotalFieldSolve to please give us the factored L matrices
+        std::cout << "DBIM Iteration " << dbim_iter << "\n";
         std::vector<Eigen::PartialPivLU<Eigen::MatrixXcd> > LU_L_inc_domain_by_freq;
         std::vector<std::vector<Field> > Ez_bkg_dom;
+        std::cout << "\tCalculating background fields in domain for "
+         << frequencies.size() << " freqs, "
+         << antennas.size() << " transmitters\n";
         DomainTotalFieldSolve(
             Ez_inc,
             target_tot,
@@ -1684,6 +1693,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         // fields at receiver points.
         // Add the analytic incident field to get background field at receiver
         // points.
+        std::cout << "\tCalculating scattered fields at probe locations, due to background field in domain.\n";
         std::vector<std::vector<Field> > Ez_bkg_sct_dat;
         DataScatteredFieldSolve(
             Ez_bkg_dom,
@@ -1692,6 +1702,8 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             k2_bs,
             Ez_bkg_sct_dat
         );
+
+        std::cout << "\tAdding incident field to scattered field to get background field at probe locations\n";
         std::vector<std::vector<Field> > Ez_bkg_dat(Ez_bkg_sct_dat.size());
         for(auto ifreq{0};ifreq<Ez_bkg_sct_dat.size();++ifreq){
             auto new_size{Ez_bkg_sct_dat[ifreq].size()};
@@ -1712,7 +1724,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         //  Set up a target which is the background contrast.
         //  DomainTotalFieldSolve with those incident fields and that target.
         //  Pass in those handy-dandy factored L-matrices.
-
+        std::cout << "\tCreating incident linesources at probe locations.\n";
         std::vector<std::vector<Field> > probe_unit_ez_inc(frequencies.size());
         for(auto ifreq{0}; ifreq<frequencies.size();++ifreq){
             probe_unit_ez_inc[ifreq].resize(probes.size());
@@ -1733,6 +1745,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
 
         std::vector<std::vector<Field> > Ez_tot_due_to_probe_units;
 
+        std::cout << "\tCalculating total field response to linesources at probe locations.\n";
         DomainTotalFieldSolve(
             probe_unit_ez_inc,
             target_tot,
@@ -1743,6 +1756,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             Ez_tot_due_to_probe_units
         );
 
+        std::cout << "\tBuilding data Green's function from total field responses and element areas.\n";
         std::vector<Eigen::MatrixXcd> G_bkg_dat_by_freq(frequencies.size());
         for(auto ifreq{0}; ifreq< G_bkg_dat_by_freq.size();++ifreq){
             G_bkg_dat_by_freq[ifreq].resize(
@@ -1755,18 +1769,35 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
                     mesh.areas.array()
                 ).matrix().transpose();
             }
+            // std::cout << G_bkg_dat_by_freq[ifreq].row(0) << "\n\n\n";
+            // std::cout << G_inc_data_by_freq[ifreq].row(0) << "\n\n\n";
+
         }
 
-        // Build big vector of Utotmeas, and Ubkg
+        if(dbim_iter==0){
+            std::cout << "\tIt is the first time through the loop, so I can use the background analytic data Green's function\n";
+            G_bkg_dat_by_freq = G_inc_data_by_freq;
+        }
 
+
+        // Build big vector of Utotmeas, and Ubkg
+        std::cout << "\tCounting the number of data. ";
         auto n_data{0};
         for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
             for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
                 n_data += M_s_data[ifreq][itx].rows();
             }
         }
+        auto max_possible_n_data{
+            frequencies.size()*
+            antennas.size()*
+            antennas.size()
+        };
+        std::cout << "Using " << n_data << " of " << max_possible_n_data << " possible data.\n";
         Eigen::VectorXcd Ez_tot_meas_concat(n_data);
         Eigen::VectorXcd Ez_bkg_calc_concat(n_data);
+
+        std::cout << "\tConcatenating all data and all background fields into big vectors.\n";
         auto concat_ptr{0};
         for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
             for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
@@ -1779,11 +1810,13 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
                     concat_ptr,0,
                     n_data_for_tx,1
                 ) = M_s_data[ifreq][itx]*Ez_bkg_dat[ifreq][itx].getValRef();
-                concat_ptr++;
+                concat_ptr+=n_data_for_tx;
             }
         }
+        std::cout << "\tFilled in " << concat_ptr << " rows, and I should have filled " << n_data << " rows.\n";
         const Eigen::VectorXcd MsDeltaUTot{Ez_tot_meas_concat-Ez_bkg_calc_concat};
 
+        std::cout << "\tBuilding D, from distorted Green's functions and current background field.\n ";
         Eigen::MatrixXcd D_bkg(n_data,mesh.centroids.rows());
         auto D_ptr{0};
         for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
@@ -1805,178 +1838,89 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             }
         }
 
+
+
         // Build a big vertcat of kb^2*G_bkg_dat*[Ubkgdom]
 
         // Solve for chi^tot_bkg via truncated svd.
         // u^{tot,meas} - u^{bkg}_{dat} =
-        // k_b^2*G^dat_bkg*U^tot_dom*chi^tot_bkg
-        Eigen::BDCSVD<Eigen::MatrixXcd> SVD_D_bkg;
-        SVD_D_bkg.compute(
-            D_bkg,
-            Eigen::DecompositionOptions::ComputeThinU|
-            Eigen::DecompositionOptions::ComputeThinV
-        );
+        // k_b^2*G^dat_bkg*U^bkg_dom*(eps_rel_fgd-eps_rel_bkg)
+        // std::cout << "\tDecomposing D.\n";
+        // Eigen::BDCSVD<Eigen::MatrixXcd> SVD_D_bkg;
+        // SVD_D_bkg.compute(
+        //     D_bkg,
+        //     Eigen::DecompositionOptions::ComputeThinU|
+        //     Eigen::DecompositionOptions::ComputeThinV
+        // );
+        //
+        // Eigen::VectorXd D_singular_values{SVD_D_bkg.singularValues()};
+        // //std::cout << D_singular_values.transpose() << "\n";
+        // auto n_sing_vals_to_keep{0};
+        // for(
+        //     n_sing_vals_to_keep=0;
+        //     n_sing_vals_to_keep<D_singular_values.size();
+        //     ++n_sing_vals_to_keep
+        // ){
+        //     if(D_singular_values(n_sing_vals_to_keep)<(D_singular_values(0)*sing_val_thresh)){
+        //         break;
+        //     }
+        // }
+        // std::cout << "\tTruncating U,S,V. Use " << n_sing_vals_to_keep << " of " << D_singular_values.size() << " singular vectors.\n";
+        // Eigen::MatrixXcd U_trunc{SVD_D_bkg.matrixU()};
+        // U_trunc = U_trunc.block(
+        //     0,0,
+        //     U_trunc.rows(),n_sing_vals_to_keep
+        // );
+        //
+        // Eigen::MatrixXcd V_trunc{SVD_D_bkg.matrixV()};
+        // V_trunc = V_trunc.block(
+        //     0,0,
+        //     V_trunc.rows(),n_sing_vals_to_keep
+        // );
+        //
+        // const Eigen::VectorXcd S_trunc_vec{
+        //     D_singular_values.block(0,0,n_sing_vals_to_keep,1)
+        // };
+        // const Eigen::MatrixXcd S_trunc_mat_inv{
+        //     S_trunc_vec.array().inverse().matrix().asDiagonal()
+        // };
+        // std::cout << "\tSolving for delta_eps_rel_tot_bkg\n";
+        // Eigen::VectorXcd delta_eps_rel_tot_bkg{
+        //     contrast_update_scale*
+        //     V_trunc*(
+        //         S_trunc_mat_inv*(
+        //             U_trunc.adjoint()*MsDeltaUTot
+        //         )
+        //     )
+        // };
 
+        Eigen::LeastSquaresConjugateGradient<Eigen::MatrixXcd> lscg;
+        lscg.compute(D_bkg);
+        lscg.setMaxIterations(n_lscg_iterations);
+        lscg.setTolerance(lscg_tolerance);
 
-
-        Eigen::VectorXd D_singular_values{SVD_D_bkg.singularValues()};
-        std::cout << D_singular_values.transpose() << "\n";
-        auto n_sing_vals_to_keep{0};
-        for(
-            n_sing_vals_to_keep=0;
-            n_sing_vals_to_keep<D_singular_values.size();
-            ++n_sing_vals_to_keep
-        ){
-            if(D_singular_values(n_sing_vals_to_keep)<(D_singular_values(0)*sing_val_thresh)){
-                break;
-            }
-        }
-
-        Eigen::MatrixXcd U_trunc{SVD_D_bkg.matrixU()};
-        U_trunc = U_trunc.block(
-            0,0,
-            U_trunc.rows(),n_sing_vals_to_keep
-        );
-
-        Eigen::MatrixXcd V_trunc{SVD_D_bkg.matrixV()};
-        V_trunc = V_trunc.block(
-            0,0,
-            V_trunc.rows(),n_sing_vals_to_keep
-        );
-
-        Eigen::VectorXcd S_trunc_vec{D_singular_values.block(0,0,n_sing_vals_to_keep,1)};
-
-        Eigen::VectorXcd X_tot_bkg{
-            V_trunc*(
-                S_trunc_vec.array().inverse().matrix().asDiagonal()*(
-                    U_trunc.adjoint()*MsDeltaUTot
-                )
-            )
-        };
+        const Eigen::VectorXcd delta_eps_rel_tot_bkg{lscg.solve(MsDeltaUTot)};
 
         // Assign T/B contrast to B/I contrast
-        target_tot.contrast.setVals(
-            (
-                (target_tot.contrast.getValRef().array()+1)*
-                (X_tot_bkg.array()+1)
-                -1
-            ).matrix()
-        );
+        std::cout << "\tUpdating contrast.\n";
+        const Eigen::VectorXcd new_contrast{
+            target_tot.contrast.getValRef()+
+            delta_eps_rel_tot_bkg
+        };
+        target_tot.contrast.setVals(new_contrast);
         DBIMStep step;
         step.chi = target_tot.contrast;
         step.Utot = Ez_bkg_dom;
         step.Fs = MsDeltaUTot.norm()/Ez_tot_meas_concat.norm();
         inv_log.steps.push_back(step);
+
+        std::cout << "\tStoring DBIM step.\n";
+        std::cout << "\tavg. abs. eps. step : " << delta_eps_rel_tot_bkg.array().abs().mean() <<"\n";
+        std::cout << "\tCost functional    : " << step.Fs << "\n";
+        std::cout << "\tData norm          : " << Ez_tot_meas_concat.norm() << "\n";
+        std::cout << "\tBkg field norm     : " << Ez_bkg_calc_concat.norm() << "\n";
     }
     return(inv_log);
-}
-
-void DBIMInversion::WriteResults(std::string outdir){
-    if(not(outdir.back()=='\\' or outdir.back() == '/')) outdir += "/";
-    imaging_mesh.WriteMeshToFile(outdir);
-    auto iter_count{0};
-    for(auto& step : steps){
-        step.chi.WriteValsToFile(
-            outdir +
-            "chi_iter_" + std::to_string(iter_count) +
-            ".txt"
-        );
-        auto step_freq_count{0};
-        for(auto& vec_of_tot_fields : step.Utot){
-            auto field_count{0};
-            for(auto& tot_field:vec_of_tot_fields){
-                tot_field.WriteValsToFile(
-                    outdir +
-                    "Ez_tot_" +
-                    "iter_" + std::to_string(iter_count) +
-                    "freq_" + std::to_string(step_freq_count) +
-                    "tx_" + std::to_string(field_count) +
-                    ".txt"
-                );
-                field_count++;
-            }
-            step_freq_count++;
-        }
-        iter_count++;
-    }
-    auto freq_count{0};
-    for(auto& vec_of_tot_data:Ez_tot_meas){
-        Eigen::MatrixXcd meas_mat;
-        FormFieldMatrix(
-            meas_mat,
-            vec_of_tot_data
-        );
-        WriteMatrixToFile(
-            outdir +
-            "Ez_tot_meas_" +
-            "freq_" + std::to_string(freq_count) +
-            ".txt",
-            meas_mat
-        );
-        freq_count++;
-    }
-    Eigen::VectorXcd Fs_vec(steps.size());
-    for(auto ii{0}; ii<steps.size(); ++ii){
-        Fs_vec(ii) = steps[ii].Fs;
-    }
-    WriteVectorToFile(
-        outdir + "Fs.txt",
-        Fs_vec
-    );
-}
-
-void BIMInversion::WriteResults(std::string outdir){
-    if(not(outdir.back()=='\\' or outdir.back() == '/')) outdir += "/";
-    imaging_mesh.WriteMeshToFile(outdir);
-    auto iter_count{0};
-    for(auto& step : steps){
-        step.chi.WriteValsToFile(
-            outdir +
-            "chi_iter_" + std::to_string(iter_count) +
-            ".txt"
-        );
-        auto step_freq_count{0};
-        for(auto& vec_of_tot_fields : step.Utot){
-            auto field_count{0};
-            for(auto& tot_field:vec_of_tot_fields){
-                tot_field.WriteValsToFile(
-                    outdir +
-                    "Ez_tot_" +
-                    "iter_" + std::to_string(iter_count) +
-                    "freq_" + std::to_string(step_freq_count) +
-                    "tx_" + std::to_string(field_count) +
-                    ".txt"
-                );
-                field_count++;
-            }
-            step_freq_count++;
-        }
-        iter_count++;
-    }
-    auto freq_count{0};
-    for(auto& vec_of_tot_data:Ez_sct_meas){
-        Eigen::MatrixXcd meas_mat;
-        FormFieldMatrix(
-            meas_mat,
-            vec_of_tot_data
-        );
-        WriteMatrixToFile(
-            outdir +
-            "Ez_sct_meas_" +
-            "freq_" + std::to_string(freq_count) +
-            ".txt",
-            meas_mat
-        );
-        freq_count++;
-    }
-    Eigen::VectorXcd Fs_vec(steps.size());
-    for(auto ii{0}; ii<steps.size(); ++ii){
-        Fs_vec(ii) = steps[ii].Fs;
-    }
-    WriteVectorToFile(
-        outdir + "Fs.txt",
-        Fs_vec
-    );
 }
 
 BIMInversion Chamber::bornIterativeMethod(){
@@ -2184,7 +2128,113 @@ BIMInversion Chamber::bornIterativeMethod(){
     return(inv_log);
 }
 
+void DBIMInversion::WriteResults(std::string outdir){
+    if(not(outdir.back()=='\\' or outdir.back() == '/')) outdir += "/";
+    imaging_mesh.WriteMeshToFile(outdir);
+    auto iter_count{0};
+    for(auto& step : steps){
+        step.chi.WriteValsToFile(
+            outdir +
+            "chi_iter_" + std::to_string(iter_count) +
+            ".txt"
+        );
+        auto step_freq_count{0};
+        for(auto& vec_of_tot_fields : step.Utot){
+            auto field_count{0};
+            for(auto& tot_field:vec_of_tot_fields){
+                tot_field.WriteValsToFile(
+                    outdir +
+                    "Ez_tot_" +
+                    "iter_" + std::to_string(iter_count) +
+                    "freq_" + std::to_string(step_freq_count) +
+                    "tx_" + std::to_string(field_count) +
+                    ".txt"
+                );
+                field_count++;
+            }
+            step_freq_count++;
+        }
+        iter_count++;
+    }
+    auto freq_count{0};
+    for(auto& vec_of_tot_data:Ez_tot_meas){
+        Eigen::MatrixXcd meas_mat;
+        FormFieldMatrix(
+            meas_mat,
+            vec_of_tot_data
+        );
+        WriteMatrixToFile(
+            outdir +
+            "Ez_tot_meas_" +
+            "freq_" + std::to_string(freq_count) +
+            ".txt",
+            meas_mat
+        );
+        freq_count++;
+    }
+    Eigen::VectorXcd Fs_vec(steps.size());
+    for(auto ii{0}; ii<steps.size(); ++ii){
+        Fs_vec(ii) = steps[ii].Fs;
+    }
+    WriteVectorToFile(
+        outdir + "Fs.txt",
+        Fs_vec
+    );
+}
 
+void BIMInversion::WriteResults(std::string outdir){
+    if(not(outdir.back()=='\\' or outdir.back() == '/')) outdir += "/";
+    imaging_mesh.WriteMeshToFile(outdir);
+    auto iter_count{0};
+    for(auto& step : steps){
+        step.chi.WriteValsToFile(
+            outdir +
+            "chi_iter_" + std::to_string(iter_count) +
+            ".txt"
+        );
+        auto step_freq_count{0};
+        for(auto& vec_of_tot_fields : step.Utot){
+            auto field_count{0};
+            for(auto& tot_field:vec_of_tot_fields){
+                tot_field.WriteValsToFile(
+                    outdir +
+                    "Ez_tot_" +
+                    "iter_" + std::to_string(iter_count) +
+                    "freq_" + std::to_string(step_freq_count) +
+                    "tx_" + std::to_string(field_count) +
+                    ".txt"
+                );
+                field_count++;
+            }
+            step_freq_count++;
+        }
+        iter_count++;
+    }
+    auto freq_count{0};
+    for(auto& vec_of_tot_data:Ez_sct_meas){
+        Eigen::MatrixXcd meas_mat;
+        FormFieldMatrix(
+            meas_mat,
+            vec_of_tot_data
+        );
+        WriteMatrixToFile(
+            outdir +
+            "Ez_sct_meas_" +
+            "freq_" + std::to_string(freq_count) +
+            ".txt",
+            meas_mat
+        );
+        freq_count++;
+    }
+    Eigen::VectorXcd Fs_vec(steps.size());
+    for(auto ii{0}; ii<steps.size(); ++ii){
+        Fs_vec(ii) = steps[ii].Fs;
+    }
+    WriteVectorToFile(
+        outdir + "Fs.txt",
+        Fs_vec
+    );
+}
 
 void WriteMatrixToFile(
     std::string filename,
