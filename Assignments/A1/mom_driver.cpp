@@ -560,7 +560,7 @@ void Chamber::readMeasuredData(
                 tot_matrix.rows(),
                 tot_matrix.cols()
             )
-        };        
+        };
         Eigen::MatrixXcd noise(
             tot_matrix.rows(),
             tot_matrix.cols()
@@ -1656,6 +1656,30 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         std::cout << "Least-squares conjugate-gradient tolerance?\n";
         std::cin >> lscg_tolerance;
     }
+    auto n_data{0};
+    for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
+        for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
+            n_data += M_s_data[ifreq][itx].rows();
+        }
+    }
+    const auto max_possible_n_data{
+        frequencies.size()*
+        antennas.size()*
+        antennas.size()
+    };
+    std::cout << "Using " << n_data << " of " << max_possible_n_data << " possible data.\n";
+    Eigen::VectorXcd Ez_tot_meas_concat(n_data);
+    auto meas_concat_ptr{0};
+    for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
+        for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
+            const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
+            Ez_tot_meas_concat.block(
+                meas_concat_ptr,0,
+                n_data_for_tx,1
+            ) = M_s_data[ifreq][itx]*Ez_tot_meas[ifreq][itx].getValRef();
+            meas_concat_ptr+=n_data_for_tx;
+        }
+    }
 
     double contrast_update_scale;
     std::cout << "Contrast update scale?\n";
@@ -1769,9 +1793,6 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
                     mesh.areas.array()
                 ).matrix().transpose();
             }
-            // std::cout << G_bkg_dat_by_freq[ifreq].row(0) << "\n\n\n";
-            // std::cout << G_inc_data_by_freq[ifreq].row(0) << "\n\n\n";
-
         }
 
         if(dbim_iter==0){
@@ -1779,33 +1800,12 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             G_bkg_dat_by_freq = G_inc_data_by_freq;
         }
 
-
-        // Build big vector of Utotmeas, and Ubkg
-        std::cout << "\tCounting the number of data. ";
-        auto n_data{0};
-        for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
-            for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
-                n_data += M_s_data[ifreq][itx].rows();
-            }
-        }
-        auto max_possible_n_data{
-            frequencies.size()*
-            antennas.size()*
-            antennas.size()
-        };
-        std::cout << "Using " << n_data << " of " << max_possible_n_data << " possible data.\n";
-        Eigen::VectorXcd Ez_tot_meas_concat(n_data);
+        std::cout << "\tConcatenating all background fields into big vectors.\n";
         Eigen::VectorXcd Ez_bkg_calc_concat(n_data);
-
-        std::cout << "\tConcatenating all data and all background fields into big vectors.\n";
         auto concat_ptr{0};
-        for(auto ifreq{0}; ifreq<Ez_tot_meas.size();++ifreq){
-            for(auto itx{0};itx<Ez_tot_meas[ifreq].size();++itx){
+        for(auto ifreq{0}; ifreq<Ez_bkg_dat.size();++ifreq){
+            for(auto itx{0};itx<Ez_bkg_dat[ifreq].size();++itx){
                 const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
-                Ez_tot_meas_concat.block(
-                    concat_ptr,0,
-                    n_data_for_tx,1
-                ) = M_s_data[ifreq][itx]*Ez_tot_meas[ifreq][itx].getValRef();
                 Ez_bkg_calc_concat.block(
                     concat_ptr,0,
                     n_data_for_tx,1
@@ -1813,9 +1813,8 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
                 concat_ptr+=n_data_for_tx;
             }
         }
-        std::cout << "\tFilled in " << concat_ptr << " rows, and I should have filled " << n_data << " rows.\n";
-        const Eigen::VectorXcd MsDeltaUTot{Ez_tot_meas_concat-Ez_bkg_calc_concat};
 
+        const Eigen::VectorXcd MsDeltaUTot{Ez_tot_meas_concat-Ez_bkg_calc_concat};
         std::cout << "\tBuilding D, from distorted Green's functions and current background field.\n ";
         Eigen::MatrixXcd D_bkg(n_data,mesh.centroids.rows());
         auto D_ptr{0};
@@ -1838,69 +1837,16 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             }
         }
 
-
-
-        // Build a big vertcat of kb^2*G_bkg_dat*[Ubkgdom]
-
-        // Solve for chi^tot_bkg via truncated svd.
-        // u^{tot,meas} - u^{bkg}_{dat} =
-        // k_b^2*G^dat_bkg*U^bkg_dom*(eps_rel_fgd-eps_rel_bkg)
-        // std::cout << "\tDecomposing D.\n";
-        // Eigen::BDCSVD<Eigen::MatrixXcd> SVD_D_bkg;
-        // SVD_D_bkg.compute(
-        //     D_bkg,
-        //     Eigen::DecompositionOptions::ComputeThinU|
-        //     Eigen::DecompositionOptions::ComputeThinV
-        // );
-        //
-        // Eigen::VectorXd D_singular_values{SVD_D_bkg.singularValues()};
-        // //std::cout << D_singular_values.transpose() << "\n";
-        // auto n_sing_vals_to_keep{0};
-        // for(
-        //     n_sing_vals_to_keep=0;
-        //     n_sing_vals_to_keep<D_singular_values.size();
-        //     ++n_sing_vals_to_keep
-        // ){
-        //     if(D_singular_values(n_sing_vals_to_keep)<(D_singular_values(0)*sing_val_thresh)){
-        //         break;
-        //     }
-        // }
-        // std::cout << "\tTruncating U,S,V. Use " << n_sing_vals_to_keep << " of " << D_singular_values.size() << " singular vectors.\n";
-        // Eigen::MatrixXcd U_trunc{SVD_D_bkg.matrixU()};
-        // U_trunc = U_trunc.block(
-        //     0,0,
-        //     U_trunc.rows(),n_sing_vals_to_keep
-        // );
-        //
-        // Eigen::MatrixXcd V_trunc{SVD_D_bkg.matrixV()};
-        // V_trunc = V_trunc.block(
-        //     0,0,
-        //     V_trunc.rows(),n_sing_vals_to_keep
-        // );
-        //
-        // const Eigen::VectorXcd S_trunc_vec{
-        //     D_singular_values.block(0,0,n_sing_vals_to_keep,1)
-        // };
-        // const Eigen::MatrixXcd S_trunc_mat_inv{
-        //     S_trunc_vec.array().inverse().matrix().asDiagonal()
-        // };
-        // std::cout << "\tSolving for delta_eps_rel_tot_bkg\n";
-        // Eigen::VectorXcd delta_eps_rel_tot_bkg{
-        //     contrast_update_scale*
-        //     V_trunc*(
-        //         S_trunc_mat_inv*(
-        //             U_trunc.adjoint()*MsDeltaUTot
-        //         )
-        //     )
-        // };
-
         Eigen::LeastSquaresConjugateGradient<Eigen::MatrixXcd> lscg;
         lscg.compute(D_bkg);
         lscg.setMaxIterations(n_lscg_iterations);
         lscg.setTolerance(lscg_tolerance);
 
         const Eigen::VectorXcd delta_eps_rel_tot_bkg{lscg.solve(MsDeltaUTot)};
-
+        const auto rel_lscg_error{
+            (D_bkg*delta_eps_rel_tot_bkg - MsDeltaUTot).norm()/
+            MsDeltaUTot.norm()
+        };
         // Assign T/B contrast to B/I contrast
         std::cout << "\tUpdating contrast.\n";
         const Eigen::VectorXcd new_contrast{
@@ -1919,6 +1865,8 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
         std::cout << "\tCost functional    : " << step.Fs << "\n";
         std::cout << "\tData norm          : " << Ez_tot_meas_concat.norm() << "\n";
         std::cout << "\tBkg field norm     : " << Ez_bkg_calc_concat.norm() << "\n";
+        std::cout << "\tNum lscg steps     : " << lscg.iterations() << "/" << lscg.maxIterations() << "\n";
+        std::cout << "\tRel lscg error     : " << rel_lscg_error << "\n";
     }
     return(inv_log);
 }
@@ -1933,6 +1881,7 @@ BIMInversion Chamber::bornIterativeMethod(){
 
     assert(Ez_tot_meas.size());
 
+    calcDomainEzInc();
     calcDataEzInc();
     Ez_sct_meas.resize(Ez_tot_meas.size());
     {
@@ -1951,8 +1900,6 @@ BIMInversion Chamber::bornIterativeMethod(){
             vf_idx++;
         }
     }
-
-
     G_inc_domain_by_freq.resize(frequencies.size());
 
     for(auto ifreq{0};ifreq<frequencies.size();ifreq++){
@@ -1978,7 +1925,6 @@ BIMInversion Chamber::bornIterativeMethod(){
             );
         }
     }
-
     for(auto ifreq{0}; ifreq<tx2rx.size(); ++ifreq){
         for(auto itx{0}; itx < tx2rx[ifreq].size(); ++itx){
             auto row_ptr{0};
@@ -1993,33 +1939,77 @@ BIMInversion Chamber::bornIterativeMethod(){
         }
     }
 
-    double sing_val_thresh{-1};
-    while(not(0.0<sing_val_thresh && sing_val_thresh<1.0)){
-        std::cout << "What threshold shall I use for singular values?[0-1]\n";
-        std::cin >> sing_val_thresh;
-    }
     int n_bim_iterations{-1};
     while(n_bim_iterations<0){
         std::cout << "How many BIM iterations shall we run?\n";
         std::cin >> n_bim_iterations;
     }
 
+    // int n_lscg_iterations{-1};
+    // while(n_lscg_iterations<0){
+    //     std::cout << "How many least-squares conjugate-gradient steps?\n";
+    //     std::cin >> n_lscg_iterations;
+    // }
+    //
+    // double lscg_tolerance{-1.0};
+    // while(not(0.0<lscg_tolerance and lscg_tolerance < 1.0)){
+    //     std::cout << "Least-squares conjugate-gradient tolerance?\n";
+    //     std::cin >> lscg_tolerance;
+    // }
+
+    double svd_thresh{-1.0};
+    while(not(0.0 < svd_thresh and svd_thresh < 1.0)){
+        std::cout << "Threshold for singular values?\n";
+        std::cin >> svd_thresh;
+    }
+
+    const auto n_cells{mesh.areas.size()};
+    auto total_data_count{0};
+    for(auto& tx_rx_map_at_freq : tx2rx){
+        for(auto& rx_list : tx_rx_map_at_freq){
+            total_data_count += rx_list.size();
+        }
+    }
+    std::cout << "Counted " << total_data_count << " total data.\n";
+
+    std::cout << "Constructing concatenated data vector... ";
+    Eigen::VectorXcd Ez_sct_meas_masked(total_data_count);
+    auto Ez_meas_mask_ptr{0};
+    for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
+        for(auto itx{0};itx<antennas.size();++itx){
+            const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
+            Ez_sct_meas_masked.block(
+                Ez_meas_mask_ptr,0,
+                n_data_for_tx,1
+            ) = M_s_data[ifreq][itx]*Ez_sct_meas[ifreq][itx].getValRef();
+            Ez_meas_mask_ptr += n_data_for_tx;
+        }
+    }
+    std::cout << "done\n";
+
     BIMInversion inv_log;
     inv_log.imaging_mesh = mesh;
     inv_log.Ez_sct_meas = Ez_sct_meas;
     for(auto bim_iter{0};bim_iter<n_bim_iterations;++bim_iter){
-        calcDomainEzTot();
-        const auto n_cells{mesh.areas.size()};
-        auto total_data_count{0};
-        for(auto& tx_rx_map_at_freq : tx2rx){
-            for(auto& rx_list : tx_rx_map_at_freq){
-                total_data_count += rx_list.size();
-            }
-        }
-        std::cout << "Starting DU product\n";
+        std::cout << "BIM Iteration " << bim_iter << ":\n";
+        std::vector<Eigen::PartialPivLU<Eigen::MatrixXcd> > LU_L_inc_domain_by_freq;
+        std::cout << "\tSolving for total fields from contrast.\n";
+        calcDomainEzInc();
+        DomainTotalFieldSolve(
+            Ez_inc,
+            target_tot,
+            G_inc_domain_by_freq,
+            LU_L_inc_domain_by_freq,
+            true,
+            k2_bs,
+            Ez_tot
+        );
+
+        std::cout << "\tStarting DU product... ";
         auto du_row_ptr{0};
         Eigen::MatrixXcd DU(total_data_count,n_cells);
         for(auto ifreq{0};ifreq<Ez_tot.size();++ifreq){
+            const Eigen::MatrixXcd kG{k2_bs[ifreq]*G_inc_data_by_freq[ifreq]};
             for(auto itx{0};itx<Ez_tot[ifreq].size();++itx){
                 const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
                 DU.block(
@@ -2027,92 +2017,72 @@ BIMInversion Chamber::bornIterativeMethod(){
                     n_data_for_tx,n_cells
                 ) =
                 M_s_data[ifreq][itx]*
-                k2_bs[ifreq]*
-                G_inc_data_by_freq[ifreq]*
+                kG*
                 Ez_tot[ifreq][itx].getValRef().asDiagonal();
                 du_row_ptr += n_data_for_tx;
             }
         }
-        std::cout << "Done DU product\n";
+        std::cout << "done DU product\n";
+        // Use truncated SVD to solve for chi
+        std::cout << "\tSolving for chi, ... ";
 
-        // Now get an svd from DU
-
-        std::cout << "Beginning SV decomposition...\n";
-
+        // Eigen::LeastSquaresConjugateGradient<Eigen::MatrixXcd> lscg;
+        // lscg.compute(DU);
+        // lscg.setMaxIterations(n_lscg_iterations);
+        // lscg.setTolerance(lscg_tolerance);
+        // const Eigen::VectorXcd chi_eps{lscg.solve(Ez_sct_meas_masked)};
+        // const auto rel_lscg_error{
+        //     (DU*chi_eps-Ez_sct_meas_masked).norm()/
+        //     Ez_sct_meas_masked.norm()
+        // };
         Eigen::BDCSVD<Eigen::MatrixXcd> SVD_DU;
         SVD_DU.compute(
             DU,
             Eigen::DecompositionOptions::ComputeThinU|
             Eigen::DecompositionOptions::ComputeThinV
         );
-
-        std::cout << "Decomposition complete!\n";
-
-        std::cout << "Truncating SVD matrices...\n";
-        Eigen::VectorXd DU_singular_values{SVD_DU.singularValues()};
-
-        auto n_sing_vals_to_keep{0};
-        for(
-            n_sing_vals_to_keep=0;
-            n_sing_vals_to_keep<DU_singular_values.size();
-            ++n_sing_vals_to_keep
-        ){
-            if(DU_singular_values(n_sing_vals_to_keep)<(DU_singular_values(0)*sing_val_thresh)){
+        // const Eigen::VectorXcd chi_eps{SVD_DU.solve(Ez_sct_meas_masked)};
+        Eigen::MatrixXcd U_trunc{SVD_DU.matrixU()};
+        Eigen::MatrixXcd V_trunc{SVD_DU.matrixV()};
+        Eigen::VectorXd S_trunc{SVD_DU.singularValues()};
+        const auto n_possible_sing_vals{S_trunc.rows()};
+        const auto s0{S_trunc(0)};
+        int sing_val_keep_index{0};
+        for(auto ii{0}; ii<S_trunc.rows(); ++ii){
+            if((S_trunc(ii)/s0)<svd_thresh){
+                sing_val_keep_index=ii;
                 break;
             }
         }
-        std::cout << "Gonna use " << n_sing_vals_to_keep << " singular values, out of " << DU_singular_values.size() << "\n";
-        Eigen::MatrixXcd U_trunc{SVD_DU.matrixU()};
+
         U_trunc = U_trunc.block(
             0,0,
-            U_trunc.rows(),n_sing_vals_to_keep
+            U_trunc.rows(),sing_val_keep_index
         );
-
-        Eigen::MatrixXcd V_trunc{SVD_DU.matrixV()};
         V_trunc = V_trunc.block(
             0,0,
-            V_trunc.rows(),n_sing_vals_to_keep
+            V_trunc.rows(),sing_val_keep_index
         );
-
-        Eigen::VectorXcd S_trunc_vec{DU_singular_values.block(0,0,n_sing_vals_to_keep,1)};
-        std::cout << "Done truncation\n";
-        std::cout << U_trunc.rows() << "," << U_trunc.cols() << "," << S_trunc_vec.rows() << "," << V_trunc.cols() << "," << V_trunc.rows() << "\n";
-
-        // Construct the big concatenation of measured data, masked with M_s_data.
-        std::cout << "Constructing concatenated data vector\n";
-        Eigen::VectorXcd Ez_sct_meas_masked(total_data_count);
-        auto Ez_meas_mask_ptr{0};
-        for(auto ifreq{0};ifreq<frequencies.size();++ifreq){
-            for(auto itx{0};itx<antennas.size();++itx){
-                const auto n_data_for_tx{M_s_data[ifreq][itx].rows()};
-                Ez_sct_meas_masked.block(
-                    Ez_meas_mask_ptr,0,
-                    n_data_for_tx,1
-                ) = M_s_data[ifreq][itx]*Ez_sct_meas[ifreq][itx].getValRef();
-                Ez_meas_mask_ptr += n_data_for_tx;
-            }
-        }
-
-        std::cout << "Done constructing concatenated data vector\n";
-
-        // Use truncated SVD to solve for chi
-        std::cout << "Solving for chi, with truncated svd...\n";
-        const Eigen::MatrixXcd S_trunc_mat_inv{
-            S_trunc_vec.array().inverse().matrix().asDiagonal()
+        const Eigen::MatrixXcd S_trunc_inv_mat{
+            S_trunc.block(
+                0,0,
+                sing_val_keep_index,1
+            ).array().inverse().matrix().asDiagonal()
         };
-        Eigen::VectorXcd chi_eps{
+        const auto chi_eps{
             V_trunc*(
-                S_trunc_mat_inv*(
+                S_trunc_inv_mat*(
                     U_trunc.adjoint()*Ez_sct_meas_masked
                 )
             )
         };
-        std::cout << "Done chi calculation.\n";
+        std::cout << "done.\n";
+
         // Now set the target, given chi:
         Eigen::VectorXcd eps_rel{(chi_eps.array()+1).matrix()};
 
         target_tot.eps_r.setVals(eps_rel);
-
+        target_tot.contrast.setVals(chi_eps);
 
         Field chi_for_step;
         chi_for_step.setLocations(inv_log.imaging_mesh.centroids);
@@ -2123,7 +2093,12 @@ BIMInversion Chamber::bornIterativeMethod(){
         step.Fs = (Ez_sct_meas_masked - DU*chi_eps).norm()/
             (Ez_sct_meas_masked.norm());
         inv_log.steps.push_back(step);
-        std::cout << "Error at iteration " << bim_iter << " is "<<  step.Fs << "\n";
+        std::cout << "\tStoring BIM step.\n";
+        std::cout << "\tavg. abs. contrast : " << chi_eps.array().abs().mean() <<"\n";
+        std::cout << "\tCost functional    : " << step.Fs << "\n";
+        std::cout << "\tSing. vals used    : " << sing_val_keep_index << "/" << n_possible_sing_vals << "\n";
+        // std::cout << "\tNum lscg steps     : " << lscg.iterations() << "/" << lscg.maxIterations() << "\n";
+        // std::cout << "\tRel lscg error     : " << rel_lscg_error << "\n";
     }
     return(inv_log);
 }

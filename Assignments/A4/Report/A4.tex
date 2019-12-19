@@ -1,0 +1,248 @@
+\documentclass[final,titlepage,onecolumn]{article}
+\usepackage[margin=1.0in]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage[final]{hyperref}
+\usepackage[section]{placeins}
+\usepackage{titlepic}
+\usepackage{forloop}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[export]{adjustbox}
+\usepackage{url}
+\usepackage{titlepic}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows}
+\usepackage{siunitx}
+
+
+\definecolor{mGreen}{rgb}{0,0.6,0}
+\definecolor{mGray}{rgb}{0.5,0.5,0.5}
+\definecolor{mPurple}{rgb}{0.58,0,0.82}
+\definecolor{backgroundColour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{Cpp}{language=C++,
+	backgroundcolor=\color{backgroundColour},   
+	commentstyle=\color{mGreen},
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{mGray},
+	stringstyle=\color{mPurple},
+	basicstyle=\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=4,
+	basicstyle=\tiny\ttfamily}
+
+\lstdefinestyle{None}{	
+	backgroundcolor=\color{backgroundColour},   
+	commentstyle=\color{black},
+	keywordstyle=\color{black},
+	numberstyle=\tiny\color{black},
+	stringstyle=\color{black},
+	basicstyle=\footnotesize,
+	basicstyle=\tiny\ttfamily,
+	breaklines=true
+}
+
+\lstloadlanguages{Matlab}%
+\lstdefinestyle{Matlab}
+{
+	language=Matlab,
+	backgroundcolor=\color{backgroundColour},   
+	commentstyle=\color{mGreen},
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{mGray},
+	stringstyle=\color{mPurple},
+	basicstyle=\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=4,
+	basicstyle=\tiny\ttfamily}
+
+
+%opening
+\title{ECE 7440 - Wavefield Imaging and Inversion\\
+Assignment \# 4\\
+Born Iterative Methods}
+\author{Max Hughson}
+\date{\today}
+%\titlepic{\includegraphics[width=0.8\textwidth]{./figs/title.jpg}}
+
+
+
+\newcommand{\twonorm}[1]{\left|#1\right|_2}
+\newcommand{\infnorm}[1]{\left|#1\right|_\infty}
+\newcommand{\hnorm}[1]{\left|#1\right|_h}
+\newcommand{\rond}[2]{\frac{\partial#2}{\partial#1}}
+\newcommand{\rrond}[2]{\frac{\partial^2#2}{\partial#1^2}}
+\newcommand{\rondcross}[3]{\frac{\partial^2#3}{\partial #1 \partial #2}}
+\newcommand{\curl}[1]{\nabla\times\left( #1\right)}
+\newcommand{\divg}[1]{\nabla\cdot\left( #1\right)}
+\newcommand{\grad}[1]{\nabla \left(#1\right)}
+\newcommand{\curlm}{\begin{bmatrix}
+	0&-\partial_z&\partial_y\\
+	\partial_z&0&-\partial_x\\
+	-\partial_y&\partial_x&0\end{bmatrix}}
+\newcommand{\ccurlm}{\begin{bmatrix}
+		-\partial_z^2-\partial_y^2&\partial_x\partial_y&\partial_x\partial_z\\
+		\partial_x\partial_y&-\partial_x^2-\partial_z^2&\partial_y\partial_z\\
+		\partial_x\partial_z&\partial_y\partial_z&-\partial_x^2-\partial_y^2
+\end{bmatrix}}
+\newcommand{\delbydel}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\delsqbyddel}[3]{\frac{\partial^2 #1}{\partial #2 \partial #3}}
+\newcommand{\threevec}[1]{\begin{bmatrix}#1_x\\#1_y\\#1_z\end{bmatrix}}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\Large{\href{https://github.com/hughsonm/WFI/tree/master/Assignments/A4}{\textcolor{blue}{$ \rightarrow $Link to my code$ \leftarrow $}}}	
+\end{center}
+
+\normalsize
+
+\FloatBarrier
+\section{Important Notes About My Solvers}
+\begin{itemize}
+	\item They support multi-frequency
+	\item They support frequency-dependent, transmitter-dependent receiver masks
+	\begin{itemize}
+		\item Achieved by sticking a restriction matrix on the left of both sides of data equation
+		\item $ S_{11} $ was ignored
+		\item A random selection of other receivers were ignored
+	\end{itemize}
+	\item The Born iterative method uses truncated singular-value decomposition
+	\item The distorted Born iterative method uses truncated conjugate-gradient least-squares
+	\item All inversions presented here are on noiseless data
+	\item My stopping condition was based on number of iterations
+\end{itemize}
+
+\FloatBarrier
+\section{Synthetic Data Generation}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.75\linewidth]{Figs/20191218T173302/fwd_fields}
+	\caption[fwd_fields]{Low-Contrast Forward Solve}
+	\label{fig:fwdfields}
+\end{figure}
+
+
+
+\FloatBarrier
+\section{Born Iterative Method}
+The process for the Born iterative method is to make the Born approximation in order to calculate a contrast estimate, then use the contrast estimate to improve the total field approximation. Square brackets denote diagonal matrices and double-underscores denote vertical concatenation of multi-frequency, multi-transmitter data.
+
+\FloatBarrier
+\subsection{Method Outline}
+\begin{align*}
+\text{Set } \underline{\chi}^{(0)}&\\
+\forall i \in \left[1,N\right]:&\\
+\text{For each tx, }&\underline{u}^{T(i)}_{DOM} = \left(I-k_0^2G_{0,DOM}\left[\underline{\chi}^{i-1}\right]\right)\underline{u}^{I}_{DOM}\\
+&\underline{\chi}^{i} = \left(\underline{\underline{k_0^2G_{0,DATA}\left[u^{T,(i)}\right]}}\right)^{\dagger}\underline{\underline{u}}^{S,MEAS}
+\end{align*}
+
+\FloatBarrier
+\subsection{Low-Contrast Target}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T120041/bim_contrast}
+	\caption[bim_contrast]{Contrast from Born Iterative Method}
+	\label{fig:bimcontrast}
+\end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T120041/bim_fields}
+	\caption[bim_fields]{Fields from Born Iterative Method}
+	\label{fig:bimfields}
+\end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T120041/bim_Fs}
+	\caption[bim_fs]{Cost Functional for Born Iterative Method}
+	\label{fig:bimfs}
+\end{figure}
+
+
+\FloatBarrier
+\subsection{Extreme Reconstruction}
+I tried playing around with the contrast of the outer square in my domain. With the distorted Born iterative method, I was able to image a maximum contrast of roughly 1.0.
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T131756/bim_contrast}
+	\caption[bim_extreme]{Extreme Reconstruction with Born Iterative Method}
+	\label{fig:bimextreme}
+\end{figure}
+
+
+
+
+\FloatBarrier
+\section{Distorted Born Iterative Method}
+The process for the distorted Born iterative method is to make the Born approximation in order to calculate a contrast estimate, then use the contrast estimate to improve the total field approximation. Furthermore, the total fields generated by the contrast estimate are used to build a distorted Green's function operator. The contrast that is recovered from the data equation is a contrast with respect to the previous contrast, not a contrast with respect to the homogeneous background.
+Use the following terms to refer to different media:
+\begin{itemize}
+	\item[\textbf{Incident}] refers to the fields and Green's functions in a homogeneous medium
+	\item[\textbf{Background}] refers to the fields and Green's functions in a non-homogeneous medium
+	\item[\textbf{Total}] refers to the fields and Green's functions in another non-homogeneous medium which represents the actual target and actual measurements
+\end{itemize}
+
+
+\FloatBarrier
+\subsection{Method Outline}
+\begin{align*}
+	\underline{u}^{\text{BKG}}_{\text{DOM}} &= \left(I-k_0^2G^{\text{INC}}_{\text{DOM}}\left[\underline{\chi}^{\text{BKG}}\right]\right)^{-1}\underline{u}^{\text{INC}}_{\text{DOM}}\\
+	\underline{u}^{\text{BKG}}_{\text{DAT}} &= \underline{u}^{\text{INC}}_{\text{DAT}} + k_0^2G^{\text{INC}}_{\text{DAT}}\left[u^{\text{BKG}}_{\text{DOM}}\right]\underline{\chi}^{\text{BKG}}\\
+	G^{\text{BKG}}_{\text{DAT}}	&\text{ Built by placing point-sources at receiver locations and calculating fields.}\\
+	\underline{\Delta\varepsilon} &=\left(M_Sk_0^2G^{\text{BKG}}_{\text{DAT}}\left[\underline{u}^{\text{BKG}}_{\text{DOM}}\right]\right)^\dagger M_S\left(\underline{u}^{\text{TOT}}_{\text{DAT}}-\underline{u}^{\text{BKG}}_{\text{DAT}}\right)\\
+	\underline{\chi}^{\text{BKG}} & \gets \underline{\chi}^{\text{BKG}} + \underline{\Delta\varepsilon}\\
+	&\text{Repeat until stopping condition is met.}
+\end{align*}
+
+\FloatBarrier
+\subsection{Low-Contrast Target}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T120041/dbim_contrast}
+	\caption[dbim_contrast]{Contrast from Distorted Born Iterative Method}
+	\label{fig:dbimcontrast}
+\end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T120041/dbim_fields}
+	\caption[dbim_fields]{Fields from Distorted Born Iterative Method}
+	\label{fig:dbimfields}
+\end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T120041/dbim_Fs}
+	\caption[dbim_fs]{Cost Functional for Distorted Born Iterative Method}
+	\label{fig:dbimfs}
+\end{figure}
+\FloatBarrier
+\subsection{Extreme Reconstruction}
+I tried playing around with the contrast of the outer square in my domain. With the distorted Born iterative method, I was able to image a maximum contrast of roughly 2.5.
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.7\linewidth]{Figs/20191219T130054/dbim_contrast}
+	\caption[dbim_extreme]{Extreme Reconstruction with Distorted Born Iterative Method}
+	\label{fig:dbimextreme}
+\end{figure}
+
+
+\end{document}
