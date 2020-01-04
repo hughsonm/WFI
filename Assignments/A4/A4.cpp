@@ -54,6 +54,7 @@ int main(int argc, char** argv){
     const std::string method{argv[9]};
     double noise_percent{std::stod(noise_percent_string)};
 
+    std::cout << "Num threads: " << Eigen::nbThreads() << "\n";
 
     std::cout << "Mesh File     : " << meshfile << "\n";
 

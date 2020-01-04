@@ -189,6 +189,7 @@ void Mesh::buildTriangulation(
                 int type_dim;
                 int type_order;
                 int type_num_nodes;
+                int type_num_prim_nodes;
                 std::vector<double> type_node_coords;
                 gmsh::model::mesh::getElementProperties(
                     types[tt],
@@ -196,7 +197,8 @@ void Mesh::buildTriangulation(
                     type_dim,
                     type_order,
                     type_num_nodes,
-                    type_node_coords
+                    type_node_coords,
+                    type_num_prim_nodes
                 );
                 for(int ee = 0; ee < eletags[tt].size();ee++)
                 {
