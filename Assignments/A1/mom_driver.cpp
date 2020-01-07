@@ -12,8 +12,8 @@
 #include <complex>
 #include <cmath>
 #include <eigen3/Eigen/Eigen>
-#include <boost/math/special_functions/hankel.hpp>
 #include <delaunator.hpp>
+#include <complex_bessel.h>
 
 static void delaunay(
     Eigen::MatrixXi & tri,
@@ -80,11 +80,11 @@ static void tift(
 void Antenna::getEz(
     Eigen::VectorXcd & Ez,
     const Eigen::MatrixXd & points,
-    double frequency
+    std::complex<double> k
 )
 {
     int n_points = points.rows();
-    double k = 2*M_PI*frequency/CNAUGHT;
+    // double k = 2*M_PI*frequency/CNAUGHT;
     Ez.resize(n_points);
     std::complex<double> j_imag(0,1);
 
@@ -100,7 +100,7 @@ void Antenna::getEz(
             for(int ipt = 0; ipt < Ez.size(); ipt++)
             {
                 if(1e-10 < std::abs(distances(ipt))){
-                    Ez(ipt) = -j_imag/4.0*boost::math::cyl_hankel_2(
+                    Ez(ipt) = -j_imag/4.0*sp_bessel::hankelH2(
                         0,
                         k*distances(ipt)
                     );
@@ -297,7 +297,7 @@ void Mesh::buildDataGreen(
 {
     G.resize(locations.rows(),areas.size());
 
-    double k_b = std::sqrt(k2_b).real();
+    std::complex<double> k_b = std::sqrt(k2_b);
     std::complex<double> j_imag(0,1);
 
     for(int ll = 0; ll < locations.rows(); ll++)
@@ -307,11 +307,11 @@ void Mesh::buildDataGreen(
             Eigen::VectorXd diff = locations.row(ll) - centroids.row(aa);
             double distance = std::sqrt((diff.transpose())*diff);
             double radius = std::sqrt(areas(aa)/M_PI);
-            std::complex<double> J1 = boost::math::cyl_bessel_j(
+            std::complex<double> J1 = sp_bessel::besselJ(
                 1,
                 k_b*radius
             );
-            std::complex<double> H02 = boost::math::cyl_hankel_2(
+            std::complex<double> H02 = sp_bessel::hankelH2(
                 0,
                 k_b*distance
             );
@@ -329,7 +329,7 @@ void Mesh::buildDomainGreen(
     G.resize(n_tri,n_tri);
 
     std::complex<double> j(0,1);
-    double k_b = (std::sqrt(k2_b)).real();
+    std::complex<double> k_b = std::sqrt(k2_b);
     for(int mm = 0; mm < n_tri; mm++)
     {
         for(int nn = 0; nn < n_tri; nn++)
@@ -341,7 +341,7 @@ void Mesh::buildDomainGreen(
             double a_n = std::sqrt(areas(nn)/M_PI);
             if(mm==nn)
             {
-                std::complex<double> H12 = boost::math::cyl_hankel_2(
+                std::complex<double> H12 = sp_bessel::hankelH2(
                     1,
                     k_b*a_n
                 );
@@ -352,11 +352,11 @@ void Mesh::buildDomainGreen(
                 assert(dmn > a_n);
                 // In order to apply integral rule, the distance must
                 // be greater than the radius.
-                std::complex<double> J1 = boost::math::cyl_bessel_j(
+                std::complex<double> J1 = sp_bessel::besselJ(
                     1,
                     k_b*a_n
                 );
-                std::complex<double> H02 = boost::math::cyl_hankel_2(
+                std::complex<double> H02 = sp_bessel::hankelH2(
                     0,
                     k_b*dmn
                 );
@@ -378,6 +378,22 @@ Chamber::Chamber(const std::string& meshfile)
     target_tot.contrast.setLocations(mesh.centroids);
     target_tot.contrast.fillZeros();
     target_tot.ready = true;
+}
+
+void Chamber::setRelativeExternalPermittivity(std::complex<double> eps_r){
+    relative_external_eps = eps_r;
+    k2_bs.resize(frequencies.size());
+    std::transform(
+        frequencies.begin(),
+        frequencies.end(),
+        k2_bs.begin(),
+        [&] (double freq) -> std::complex<double> {
+            std::complex<double> k_term{2*M_PI*freq/CNAUGHT};
+            k_term *= k_term;
+            k_term *= relative_external_eps;
+            return(k_term);
+        }
+    );
 }
 
 void Chamber::A3P3(
@@ -681,7 +697,7 @@ void Chamber::A2Q3(
 		dummy_for_probe.getEz(
             gp,
             mesh.centroids,
-            frequencies[0]
+            k2_bs[0]
         );
         std::cerr << "Got the hankel function field, multiplying by k2b = " << k2_bs[0] << std::endl;
 		gp *= k2_bs[0];
@@ -1222,27 +1238,39 @@ void Chamber::setFrequencies(
     Ez_sct_meas.resize(frequencies.size());
     Ez_tot_meas.resize(frequencies.size());
 
+    k2_bs.resize(frequencies.size());
+    std::transform(
+        frequencies.begin(),
+        frequencies.end(),
+        k2_bs.begin(),
+        [&] (double freq) -> std::complex<double> {
+            std::complex<double> k_term{2*M_PI*freq/CNAUGHT};
+            k_term *= k_term;
+            k_term *= relative_external_eps;
+            return(k_term);
+        }
+    );
     reader.close();
 }
 
 void Chamber::calcDomainEzInc(void)
 {
     Ez_inc.resize(0);
-    for(auto& freq : frequencies){
-        std::vector<Field> vec_of_field_for_freq;
+    for(auto& k2_b : k2_bs){
+        std::vector<Field> vec_of_field_for_k;
         for(auto& ant : antennas){
             Field field_for_ant;
             Eigen::VectorXcd ez_for_ant;
             ant.getEz(
                 ez_for_ant,
                 mesh.centroids,
-                freq
+                k2_b
             );
             field_for_ant.setLocations(mesh.centroids);
             field_for_ant.setVals(ez_for_ant);
-            vec_of_field_for_freq.push_back(field_for_ant);
+            vec_of_field_for_k.push_back(field_for_ant);
         }
-        Ez_inc.push_back(vec_of_field_for_freq);
+        Ez_inc.push_back(vec_of_field_for_k);
     }
 }
 
@@ -1250,21 +1278,21 @@ void Chamber::calcDataEzInc(void)
 {
     Ez_inc_d.resize(0);
 
-    for(auto& freq : frequencies){
-        std::vector<Field> vec_of_field_for_freq;
+    for(auto& k2_b : k2_bs){
+        std::vector<Field> vec_of_field_for_k;
         for(auto& ant : antennas){
             Field field_for_ant;
             Eigen::VectorXcd ez_for_ant;
             ant.getEz(
                 ez_for_ant,
                 probe_points,
-                freq
+                k2_b
             );
             field_for_ant.setLocations(probe_points);
             field_for_ant.setVals(ez_for_ant);
-            vec_of_field_for_freq.push_back(field_for_ant);
+            vec_of_field_for_k.push_back(field_for_ant);
         }
-        Ez_inc_d.push_back(vec_of_field_for_freq);
+        Ez_inc_d.push_back(vec_of_field_for_k);
     }
 }
 
@@ -1763,7 +1791,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
                 dummy_antenna.getEz(
                     dummy_ez_inc,
                     mesh.centroids,
-                    frequencies[ifreq]
+                    k2_bs[ifreq]
                 );
                 probe_unit_ez_inc[ifreq][pp].setVals(dummy_ez_inc);
             }

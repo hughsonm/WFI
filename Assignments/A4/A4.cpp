@@ -42,24 +42,29 @@ bool make_outdir(std::string& dirname){
 
 int main(int argc, char** argv){
     gmsh::initialize();
-    assert(argc==10);
+    assert(argc==12);
     const std::string meshfile{argv[1]};
-    const std::string antennafile{argv[2]};
-    const std::string probefile{argv[3]};
-    const std::string tx2rxfile{argv[4]};
-    const std::string bimfreqfile{argv[5]};
-    const std::string total_data_prefix{argv[6]};
-    std::string output_directory_name{argv[7]};
-    const std::string noise_percent_string{argv[8]};
-    const std::string method{argv[9]};
+    const std::string extrelepsrealstr{argv[2]};
+    const std::string extrelepsimagstr{argv[3]};
+    const std::string antennafile{argv[4]};
+    const std::string probefile{argv[5]};
+    const std::string tx2rxfile{argv[6]};
+    const std::string bimfreqfile{argv[7]};
+    const std::string total_data_prefix{argv[8]};
+    std::string output_directory_name{argv[9]};
+    const std::string noise_percent_string{argv[10]};
+    const std::string method{argv[11]};
     double noise_percent{std::stod(noise_percent_string)};
-
+    std::complex<double> extreleps{
+        std::stod(extrelepsrealstr),
+        std::stod(extrelepsimagstr)
+    };
     std::cout << "Num threads: " << Eigen::nbThreads() << "\n";
-
     std::cout << "Mesh File     : " << meshfile << "\n";
 
     Chamber img_chamber(meshfile);
     img_chamber.setFrequencies(bimfreqfile);
+    img_chamber.setRelativeExternalPermittivity(extreleps);
     img_chamber.setupAntennas(antennafile);
     img_chamber.setupProbes(probefile);
     img_chamber.setupTx2RxMap(tx2rxfile);

@@ -144,10 +144,15 @@ public:
     Eigen::Vector3d location;
     Eigen::Vector3d direction;
     std::complex<double> coefficient;
+    // void getEz(
+    //     Eigen::VectorXcd & Ez,
+    //     const Eigen::MatrixXd & points,
+    //     double frequency
+    // );
     void getEz(
         Eigen::VectorXcd & Ez,
         const Eigen::MatrixXd & points,
-        double frequency
+        std::complex<double> k
     );
     bool ready{false};
 };
@@ -209,6 +214,7 @@ public:
     void setupProbes(const std::string& probefile);
     void setupTx2RxMap(const std::string& mapfile);
     void setFrequencies(const std::string& freqfile);
+    void setRelativeExternalPermittivity(std::complex<double> eps_r);
     void calcDomainEzInc(void);
     void calcDomainEzTot(void);
     void calcDataEzInc(void);
@@ -243,6 +249,7 @@ public:
         std::string dataprefix,
         double noise_pct
     );
+    std::complex<double> relative_external_eps{1.0,0.0};
     std::vector<double> frequencies;
     std::vector<std::complex<double> > k2_bs;
     // My G operators perform the integration of the product of a vector with
