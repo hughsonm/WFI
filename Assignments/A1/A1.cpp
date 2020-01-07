@@ -19,15 +19,23 @@
 int main (int argc, char **argv)
 {
     gmsh::initialize();
-    assert(argc == 7);
+    assert(argc == 9);
     Chamber img_chamber(argv[1]);
-    img_chamber.setTarget(argv[2]);
-    img_chamber.setupAntennas(argv[3]);
-    img_chamber.setFrequencies(argv[4]);
-    img_chamber.setupProbes(argv[5]);
+    const std::string extrelepsrealstr{argv[2]};
+    const std::string extrelepsimagstr{argv[3]};
+    std::complex<double> extreleps{
+        std::stod(extrelepsrealstr),
+        std::stod(extrelepsimagstr)
+    };
+    std::cout << "Relative permittivity in external medium is: " << extreleps << "\n";
+    img_chamber.setRelativeExternalPermittivity(extreleps);
+    img_chamber.setTarget(argv[4]);
+    img_chamber.setupAntennas(argv[5]);
+    img_chamber.setFrequencies(argv[6]);
+    img_chamber.setupProbes(argv[7]);
     img_chamber.calcDomainEzTot();
     img_chamber.calcDataEzTot();
-    std::string outdir(argv[6]);
+    std::string outdir(argv[8]);
     if(not (outdir.back()=='/' or outdir.back()=='\\'))
     {
         outdir += "/";

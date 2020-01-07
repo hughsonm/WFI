@@ -80,11 +80,11 @@ static void tift(
 void Antenna::getEz(
     Eigen::VectorXcd & Ez,
     const Eigen::MatrixXd & points,
-    std::complex<double> k
+    std::complex<double> k2
 )
 {
     int n_points = points.rows();
-    // double k = 2*M_PI*frequency/CNAUGHT;
+    const std::complex<double> k{std::sqrt(k2)};
     Ez.resize(n_points);
     std::complex<double> j_imag(0,1);
 
@@ -381,6 +381,7 @@ Chamber::Chamber(const std::string& meshfile)
 }
 
 void Chamber::setRelativeExternalPermittivity(std::complex<double> eps_r){
+    std::cout << "setting extreleps to " << eps_r << "\n";
     relative_external_eps = eps_r;
     k2_bs.resize(frequencies.size());
     std::transform(
@@ -394,6 +395,10 @@ void Chamber::setRelativeExternalPermittivity(std::complex<double> eps_r){
             return(k_term);
         }
     );
+    std::cout << "Frequencies\n";
+    for (auto freq : frequencies) std::cout << freq << "\n";
+    std::cout << "Wavenumbers\n";
+    for (auto k2 : k2_bs) std::cout << k2 << "\n";
 }
 
 void Chamber::A3P3(
@@ -1238,18 +1243,7 @@ void Chamber::setFrequencies(
     Ez_sct_meas.resize(frequencies.size());
     Ez_tot_meas.resize(frequencies.size());
 
-    k2_bs.resize(frequencies.size());
-    std::transform(
-        frequencies.begin(),
-        frequencies.end(),
-        k2_bs.begin(),
-        [&] (double freq) -> std::complex<double> {
-            std::complex<double> k_term{2*M_PI*freq/CNAUGHT};
-            k_term *= k_term;
-            k_term *= relative_external_eps;
-            return(k_term);
-        }
-    );
+    setRelativeExternalPermittivity(relative_external_eps);
     reader.close();
 }
 
@@ -1717,6 +1711,10 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
     DBIMInversion inv_log;
     inv_log.Ez_tot_meas = Ez_tot_meas;
     inv_log.imaging_mesh = mesh;
+    target_tot.eps_r.setVals(
+        Eigen::VectorXcd::Ones(mesh.centroids.rows())*
+        relative_external_eps
+    );
 
     for(
         auto dbim_iter{0};
@@ -2020,6 +2018,10 @@ BIMInversion Chamber::bornIterativeMethod(){
     BIMInversion inv_log;
     inv_log.imaging_mesh = mesh;
     inv_log.Ez_sct_meas = Ez_sct_meas;
+    target_tot.eps_r.setVals(
+        Eigen::VectorXcd::Ones(mesh.centroids.rows())*
+        relative_external_eps
+    );
     for(auto bim_iter{0};bim_iter<n_bim_iterations;++bim_iter){
         std::cout << "BIM Iteration " << bim_iter << ":\n";
         std::vector<Eigen::PartialPivLU<Eigen::MatrixXcd> > LU_L_inc_domain_by_freq;
