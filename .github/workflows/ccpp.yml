@@ -10,6 +10,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: make
-      run: 
-        cd Assignments/A4
-        make
+      run: echo "Hello!"
