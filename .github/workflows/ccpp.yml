@@ -11,5 +11,5 @@ jobs:
     - uses: actions/checkout@v2
     - name: make
       run: echo "Hello!"
-	sudo apt-get install eigen
-	sudo apt-get install gmsh
+        sudo apt-get install eigen
+        sudo apt-get install gmsh
