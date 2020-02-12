@@ -1618,6 +1618,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
 
     G_inc_domain_by_freq.resize(frequencies.size());
 
+    std::cout << "Building Green's Matrices...";
     for(auto ifreq{0};ifreq<frequencies.size();ifreq++){
         mesh.buildDataGreen(
             G_inc_data_by_freq[ifreq],
@@ -1628,7 +1629,9 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             G_inc_domain_by_freq[ifreq],
             k2_bs[ifreq]
         );
+        std::cout << ifreq << "\t";
     }
+    std::cout << "\n";
 
     // Build all my Ms matrices
     M_s_data.resize(frequencies.size());
@@ -1645,6 +1648,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
     calcDataEzInc();
     calcDomainEzInc();
 
+    std::cout << "Building Ms matrices...";
     for(auto ifreq{0}; ifreq<tx2rx.size(); ++ifreq){
         for(auto itx{0}; itx < tx2rx[ifreq].size(); ++itx){
             auto row_ptr{0};
@@ -1658,6 +1662,7 @@ DBIMInversion Chamber::distortedBornIterativeMethod(){
             }
         }
     }
+    std::cout << "done\n";
 
     // double sing_val_thresh{-1};
     // while(not(0.0<sing_val_thresh && sing_val_thresh<1.0)){

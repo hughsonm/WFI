@@ -8,6 +8,7 @@ CC = clang # compiler to use
 CXX = clang++
 
 CXXFLAGS = -std=c++17 -O3 -Wall -march=native -msse4 -funroll-loops -Xpreprocessor -fopenmp
+# CXXFLAGS = -std=c++17 -O0 -g -Wall -march=native -msse4
 LIBS = -lgmsh -lcomplex_bessel -lomp
 LDFLAGS =
 
@@ -36,4 +37,3 @@ clean:
 	@echo "Cleaning up..."
 	rm -rvf *.o ${BINS}
 	rm -rvf *.out ${BINS}
-	rm ../A4/mom_driver.o

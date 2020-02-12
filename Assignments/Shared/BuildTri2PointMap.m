@@ -15,5 +15,6 @@ for ii = 1:n_tri
 end
 Map = sparse(M_rows,M_cols,M_vals);
 Map = Map./sum(Map,2);
+Map(isnan(Map))=0;
 end
 
