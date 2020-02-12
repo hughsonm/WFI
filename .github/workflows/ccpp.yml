@@ -11,4 +11,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: configure
     - name: make
-      run: cd Assignments/A4;make
+      run: 
+        cd Assignments/A4
+        make
