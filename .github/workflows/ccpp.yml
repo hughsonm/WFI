@@ -12,5 +12,4 @@ jobs:
     - name: make
       run: |
         echo "Hello!"
-        sudo apt-get install eigen
         sudo apt-get install gmsh
