@@ -13,3 +13,4 @@ jobs:
       run: |
         echo "Hello!"
         sudo apt-get install gmsh
+        sudo apt-get search eigen
